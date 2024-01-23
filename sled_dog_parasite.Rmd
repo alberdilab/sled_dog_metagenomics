@@ -1595,6 +1595,9 @@ ancom_result_phylum %>%
           axis.title.x=element_blank())+
       labs(y="Phylum",x="Genome counts") + 
       guides(col=guide_legend("Phylum"))
+
+
+
 ```
 ```{r}
 #Enriched Daneborg
