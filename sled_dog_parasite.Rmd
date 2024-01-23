@@ -63,12 +63,12 @@ library(pheatmap)
 ```{r directories, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 ## set variable names for files, and working directory
 
-workingdir="/Users/elsa/Desktop/THESIS/Thesis"
-counts_file="/Users/elsa/Desktop/THESIS/Thesis/DMB0032_counts.tsv"
-tree_file="/Users/elsa/Desktop/THESIS/Thesis/DMB0032.tree"
-taxonomy_file="/Users/elsa/Desktop/THESIS/Thesis/DMB0032_mag_info.tsv"
-metadata_file="/Users/elsa/Desktop/THESIS/Thesis/DMB0032_metadata.tsv"
-coverage_file="/Users/elsa/Desktop/THESIS/Thesis/DMB0032_coverage.tsv"
+workingdir="/Users/elsa/Desktop/THESIS/sled_dog_parasite"
+counts_file="/Users/elsa/Desktop/THESIS/sled_dog_parasite/DMB0032_counts.tsv"
+tree_file="/Users/elsa/Desktop/THESIS/sled_dog_parasite/DMB0032.tree"
+taxonomy_file="/Users/elsa/Desktop/THESIS/sled_dog_parasite/DMB0032_mag_info.tsv"
+metadata_file="/Users/elsa/Desktop/THESIS/sled_dog_parasite/DMB0032_metadata.tsv"
+coverage_file="/Users/elsa/Desktop/THESIS/sled_dog_parasite/DMB0032_coverage.tsv"
 ```
 ```{r loaddata, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 ## Load data 
@@ -1464,7 +1464,7 @@ phylo_samples_deseq <- all_metadata %>%
                     sample_data() #convert to phyloseq sample_data object
 
 phylo_counts_deseq <- counts_table %>% # DESeq performs its own normalization, so the raw count table is added
-                    filter(!genome %in% structural_zeros$genome) %>% # remove structural zeros
+                    dplyr::filter(!genome %in% structural_zeros$genome) %>% # remove structural zeros
                     column_to_rownames("genome") %>% 
                     mutate_all(~ replace(., . == 0, 0.00001)) %>% #add pseudo counts to avoid structural zero issues 
                     otu_table(., taxa_are_rows = TRUE) #convert to phyloseq otu_table object
