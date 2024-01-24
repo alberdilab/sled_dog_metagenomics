@@ -2340,7 +2340,7 @@ grid.arrange(arrangeGrob(ce1, ce2,ce3, ce4, ce5, ce6, ce7, ce8, ce9, ce10, ce11,
 library(UpSetR)
 locationcolors=c('#c4d7d1','#408892')
 
-count_table_rda_binary <- ifelse(count_table_rda > 0, 1, 0) %>%
+count_table_rda_binary <- ifelse(count_table_cov_size > 0, 1, 0) %>%
   as.data.frame()
 count_table_rda_binary_ittoq <- count_table_rda_binary[, colnames(count_table_rda_binary) %in% Ittoq_samples]
 count_table_rda_binary_ittoq$sum_of_rows <- rowSums(count_table_rda_binary_ittoq)
@@ -2365,9 +2365,6 @@ upset(as.data.frame(upset_binary),
       sets.bar.color= rev(locationcolors),
       mb.ratio = c(0.55, 0.45), order.by = "freq")
 #dev.off()
-
-table_upset_analysis <- as.data.frame(table_upset_analysis)
-rows_with_zero <- rownames(table_upset_analysis)[which(table_upset_analysis$Daneborg == 0 | table_upset_analysis$Ittoqqortoormii == 0)]
 ```
 ##RDA
 ```{r physeq object with normalized counts, structural zeros included}
