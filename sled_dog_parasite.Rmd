@@ -1580,15 +1580,15 @@ ancom_result %>%
       theme_classic()
 ```
 ```{r}
-ancom_result_phylum %>%
-    filter(p_regionIttoqqortoormii < 0.05) %>%
+ancom_result %>%
+    filter(q_regionIttoqqortoormii < 0.05) %>%
     ggplot(., aes(x=lfc_regionIttoqqortoormii, y=forcats::fct_rev(phylum), color=phylum)) +
       geom_jitter(size=3) +
       geom_vline(xintercept=0) + 
-      xlim(-max(ancom_result_phylum$lfc_regionIttoqqortoormii)-2,max(ancom_result_phylum$lfc_regionIttoqqortoormii)+2) +
-      scale_color_manual(values=phylum_colors) +
-      geom_text(aes(-max(ancom_result_phylum$lfc_regionIttoqqortoormii)+1, 1), label = "Enriched\nin Daneborg", color="#666666") +
-      geom_text(aes(max(ancom_result_phylum$lfc_regionIttoqqortoormii)-1, 1), label = "Enriched\nin Ittoq", color="#666666") +
+      xlim(-max(ancom_result$lfc_regionIttoqqortoormii)-2,max(ancom_result$lfc_regionIttoqqortoormii)+2) +
+      scale_color_manual(values=colors_alphabetic$colors) +
+      geom_text(aes(-max(ancom_result$lfc_regionIttoqqortoormii)+1, 1), label = "Enriched\nin Daneborg", color="#666666") +
+      geom_text(aes(max(ancom_result$lfc_regionIttoqqortoormii)-1, 1), label = "Enriched\nin Ittoq", color="#666666") +
      theme(legend.position='none',
           panel.background = element_blank(),
           axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
@@ -1601,29 +1601,23 @@ ancom_result_phylum %>%
 ```
 ```{r}
 #Enriched Daneborg
-ancom_result_phylum %>%
+ancom_result %>%
   filter(lfc_regionIttoqqortoormii < 0) %>% 
-  filter(p_regionIttoqqortoormii < 0.05) %>% # note use of p here, should we switch to q?
+  filter(q_regionIttoqqortoormii < 0.05) %>% # using q (adjusted p-value)
   arrange(lfc_regionIttoqqortoormii) %>%
-  dplyr::select(genome,lfc_regionIttoqqortoormii,phylum,p_regionIttoqqortoormii) %>%
+  dplyr::select(genome,lfc_regionIttoqqortoormii,q_regionIttoqqortoormii) %>%
   kable()
 
 # Enriched Ittoq
-ancom_result_phylum %>%
+ancom_result %>%
   filter(lfc_regionIttoqqortoormii > 0) %>% 
-  filter(p_regionIttoqqortoormii < 0.05) %>% 
+  filter(q_regionIttoqqortoormii < 0.05) %>% 
   arrange(-lfc_regionIttoqqortoormii) %>%
-  dplyr::select(genome,lfc_regionIttoqqortoormii,phylum,p_regionIttoqqortoormii) %>%
+  dplyr::select(genome,lfc_regionIttoqqortoormii,q_regionIttoqqortoormii) %>%
   kable()
 ```
 ```{r ANCOM-BC DA P plotting, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-colors_alphabetic <- ehi_phylum_colors1 %>%
-  dplyr::right_join(ancom_result_phylum, by=join_by(phylum == genome)) %>%
-  select(phylum, colors) %>%
-	unique() %>%
-	dplyr::arrange(phylum)
-
-ancom_result_phylum %>%
+ancom_result %>%
   ggplot(., aes(x=forcats::fct_rev(genome), y=lfc_regionIttoqqortoormii, color=phylum)) + 
   geom_point(size=4) + 
   scale_color_manual(values=colors_alphabetic$colors) + 
@@ -1638,7 +1632,7 @@ ancom_result_phylum %>%
 set.seed(1234) #set seed for reproducibility
 ancom_output_genus <- ancombc2(physeq_ancom, 
                   assay_name = "counts", 
-                  tax_level = NULL,
+                  tax_level = "genus",
                   fix_formula = "region",
                   p_adj_method = "holm", 
                   pseudo_sens = TRUE,
@@ -1677,21 +1671,15 @@ ancom_result_genus %>%
       geom_text(aes(2.5, -10), label = "Enriched\nin Daneborg", color="#666666") +
       labs(color="Significance", y="Difference between treatments", x="p-value") +
       theme_classic()
-
-colnames(tax_table)[1] <- "phylum"
-tax_color <- merge(tax_table, colors_alphabetic, by="phylum")%>%
-	dplyr::arrange(phylum) %>%
-	select(colors) %>%
-	pull()
 ```
 ```{r}
 ancom_result_genus %>%
-    filter(p_regionIttoqqortoormii < 0.05) %>%
+    filter(q_regionIttoqqortoormii < 0.05) %>%
     ggplot(., aes(x=lfc_regionIttoqqortoormii, y=forcats::fct_rev(phylum), color=phylum)) +
       geom_jitter(size=3) +
       geom_vline(xintercept=0) + 
       xlim(-max(ancom_result_genus$lfc_regionIttoqqortoormii)-2,max(ancom_result_genus$lfc_regionIttoqqortoormii)+2) +
-      scale_color_manual(values=phylum_colors) +
+      scale_color_manual(values=colors_alphabetic$colors) +
       geom_text(aes(-max(ancom_result_genus$lfc_regionIttoqqortoormii)+1, 1), label = "Enriched\nin Daneborg", color="#666666") +
       geom_text(aes(max(ancom_result_genus$lfc_regionIttoqqortoormii)-1, 1), label = "Enriched\nin Ittoq", color="#666666") +
      theme(legend.position='none',
@@ -1707,7 +1695,7 @@ ancom_result_genus %>%
   filter(lfc_regionIttoqqortoormii < 0) %>% 
   filter(q_regionIttoqqortoormii < 0.05) %>% # note use of q here
   arrange(lfc_regionIttoqqortoormii) %>%
-  dplyr::select(genome,lfc_regionIttoqqortoormii,phylum,q_regionIttoqqortoormii) %>%
+  dplyr::select(genus,lfc_regionIttoqqortoormii,phylum,q_regionIttoqqortoormii) %>%
   kable()
 
 # Enriched Ittoq
@@ -1715,19 +1703,14 @@ ancom_result_genus %>%
   filter(lfc_regionIttoqqortoormii > 0) %>% 
   filter(q_regionIttoqqortoormii < 0.05) %>% 
   arrange(-lfc_regionIttoqqortoormii) %>%
-  dplyr::select(genome,lfc_regionIttoqqortoormii,phylum,q_regionIttoqqortoormii) %>%
+  dplyr::select(genus,lfc_regionIttoqqortoormii,phylum,q_regionIttoqqortoormii) %>%
   kable()
 
-## NOTE CURRENTLY THIS IS SET TO FILTER BY P-ADJ IN GENUS LEVEL, AND P IN PHYLUM LEVEL. DISCUSS WHICH IS APPROPRIATE. ALSO CHECK TO SEE IF PHYSEQ OBJECT SHOULD BE CLR TRANSFORMED FIRST!!!!! ##
+## need to figure out column naming and why it isnt working.
 ```
 ```{r ANCOM-BC DA P plotting, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-colors_alphabetic <- ehi_phylum_colors1 %>%
-  dplyr::right_join(ancom_result_genus, by=join_by(phylum == genome)) %>%
-  select(phylum, colors) %>%
-	unique() %>%
-	dplyr::arrange(phylum)
-
 ancom_result_genus %>%
+  filter(q_regionIttoqqortoormii < 0.05) %>% 
   ggplot(., aes(x=forcats::fct_rev(genome), y=lfc_regionIttoqqortoormii, color=phylum)) + 
   geom_point(size=4) + 
   scale_color_manual(values=colors_alphabetic$colors) + 
@@ -1745,7 +1728,7 @@ library(ALDEx2)
 genome_counts_ALDEx <- count_table_cov_size %>%
   filter(!genome %in% structural_zeros$genome) %>% # remove structural zeros
   column_to_rownames(var="genome") %>%
-  mutate_all(~ . * 1e6) %>% #multiple by a million
+  mutate_all(~ . * 1e6) %>% #multiply by a million
   round(0) #round to integer
 
 count_ALDEx.clr <- aldex.clr(genome_counts_ALDEx, 
@@ -1871,8 +1854,7 @@ count_ALDEx.all %>%
 ### LinDA
 #### phylum level
 ```{r LinDA DA P, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-physeq.phylum_LinDA <- tax_glom(physeq_ancom, 'phylum')
-tse_LinDA = mia::makeTreeSummarizedExperimentFromPhyloseq(physeq.phylum_LinDA) # create tse object
+tse_LinDA = mia::makeTreeSummarizedExperimentFromPhyloseq(physeq) # create tse object
 tse_LinDA <- mia::subsetByPrevalentTaxa(tse_LinDA, detection = 0, prevalence = 0.1) # filter tse object
 ```
 ```{r LinDA DA P analysis, comment="", echo=FALSE, message=FALSE, warning=FALSE}
@@ -1883,7 +1865,7 @@ tse_LinDA <- mia::subsetByPrevalentTaxa(tse_LinDA, detection = 0, prevalence = 0
 
 otu.tab <- as.data.frame(assay(tse_LinDA))
 meta <- as.data.frame(colData(tse_LinDA)) %>% dplyr::select(region)
-LinDA_phylum <- LinDA::linda(
+LinDA <- LinDA::linda(
   otu.tab, 
   meta, 
   formula = '~region', 
@@ -1892,49 +1874,37 @@ LinDA_phylum <- LinDA::linda(
   lib.cut = 1000, 
   winsor.quan = 0.97)
 
-LinDA_phylum
-LinDA::linda.plot(LinDA_phylum, c('region') )
+LinDA
+LinDA::linda.plot(LinDA, c('region') )
 
-LinDA_table_phylum <- rownames_to_column(LinDA_phylum$output$regionIttoqqortoormii, "phylum") 
+LinDA_table <- rownames_to_column(LinDA$output$regionIttoqqortoormii, "genome") 
 ```
 ```{r LinDA DA P summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-tax <- data.frame(physeq.phylum_LinDA@tax_table) %>%
+tax <- data.frame(physeq@tax_table) %>%
   rownames_to_column(., "taxon")
 
-LinDA_table_phylum <- rownames_to_column(LinDA_phylum$output$regionIttoqqortoormii, "genome") 
-LinDA_table_phylum <- merge(LinDA_table_phylum, taxonomyclean[, c("genome", "phylum")], by = "genome", all.x = TRUE)
+LinDA_table <- rownames_to_column(LinDA$output$regionIttoqqortoormii, "genome") 
+LinDA_table <- merge(LinDA_table, taxonomyclean[, c("genome", "phylum", "genus", "species")], by = "genome", all.x = TRUE)
 
-LinDA_table_phylum <- LinDA_table_phylum %>%
-  dplyr::select(phylum, lfcSE, padj, log2FoldChange) %>%
+LinDA_table <- LinDA_table %>%
+  dplyr::select(genome, phylum, genus, species,lfcSE, padj, log2FoldChange) %>%
   filter(padj < 0.005)
 
-colors_alphabetic <- ehi_phylum_colors1 %>%
-  dplyr::right_join(taxonomyclean, by=join_by(phylum == phylum)) %>%
-  dplyr::select(phylum, colors) %>%
-	unique() %>%
-	dplyr::arrange(phylum)
-
-tax_table <- as.data.frame(unique(LinDA_table_phylum$phylum))
-colnames(tax_table)[1] <- "phylum"
-# tax_color <- merge(tax_table, colors_alphabetic, by="phylum")%>%
-#	dplyr::arrange(phylum) %>%
-#	select(colors) %>%
-#	pull()
 ```
 ```{r LinDA DA P plotting, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(LinDA_table_phylum, aes(x=forcats::fct_rev(phylum), y=log2FoldChange, color=phylum)) + 
+ggplot(LinDA_table, aes(x=forcats::fct_rev(genome), y=log2FoldChange, color=phylum)) + 
   geom_point(size=4) + 
-  #scale_color_manual(values=tax_color) + 
+  scale_color_manual(values=colors_alphabetic$colors) + 
   geom_hline(yintercept=0) + 
   coord_flip()+
-  xlab("phylum") + 
+  xlab("genome") + 
   ylab("log2FoldChange")+
   guides(col=guide_legend("Phylum"))
 ```
 
 #### genus level
 ```{r LinDA DA G, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-physeq.genus_LinDA <- tax_glom(physeq_ancom, 'genus')
+physeq.genus_LinDA <- tax_glom(physeq, 'genus')
 tse_LinDA_genus = mia::makeTreeSummarizedExperimentFromPhyloseq(physeq.genus_LinDA) # create tse object
 tse_LinDA_genus <- mia::subsetByPrevalentTaxa(tse_LinDA_genus, detection = 0, prevalence = 0.1) # filter tse object
 ```
@@ -1965,24 +1935,11 @@ LinDA_table_genus <- merge(LinDA_table_genus, taxonomyclean[, c("genome", "phylu
 LinDA_table_genus <- LinDA_table_genus %>%
   dplyr::select(phylum, lfcSE, padj, log2FoldChange, genus) %>%
   filter(padj < 0.05)
-
-colors_alphabetic <- ehi_phylum_colors1 %>%
-  dplyr::right_join(taxonomyclean, by=join_by(phylum == phylum)) %>%
-  dplyr::select(phylum, colors) %>%
-	unique() %>%
-	dplyr::arrange(phylum)
-
-tax_table <- as.data.frame(unique(LinDA_table_phylum$phylum))
-colnames(tax_table)[1] <- "phylum"
-# tax_color <- merge(tax_table, colors_alphabetic, by="phylum")%>%
-#	dplyr::arrange(phylum) %>%
-#	select(colors) %>%
-#	pull()
 ```
 ```{r LinDA DA G plotting, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(LinDA_table_genus, aes(x=forcats::fct_rev(genus), y=log2FoldChange, color=phylum)) + 
   geom_point(size=4) + 
-  #scale_color_manual(values=tax_color) + 
+  scale_color_manual(values=colors_alphabetic$colors) + 
   geom_hline(yintercept=0) + 
   coord_flip()+
   xlab("genus") + 
