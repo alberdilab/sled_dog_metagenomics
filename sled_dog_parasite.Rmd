@@ -521,7 +521,7 @@ metadata_unified <- read.csv("/Users/elsa/Desktop/THESIS/Thesis/metadata_unified
 metadata_unified_clean <- metadata_unified %>%
   filter(sample != "")
 selected_columns <- metadata_unified_clean %>%
-  select(sample, Q_code, PR_results_short, PR_toxocaris_leonina, PR_sarcocystis, PR_Tania_serialis, PR_cryptosporidium, PR_giardia, sero_toxoplasma_gondii_PR, sero_trichincella_spp_PR, Huldscore, Eukaryota_., Cryptosporidium_., Giardia_., Sarcocystis_., Toxoplasma_gondii_., Toxacaris_., Trichinella_., Uncinaria_., Echinococcus_., Taenia_., Cestoda_., Nematoda_., Virus_., PARVO_Parvoviridae_., PARVO_Bocaparvovirus_., PARVO_Canine_Minute_., PARVO_Canine_bufavirus_., PARVO_Canine_protoparvovirus_., PARVO_Canine_parvovirus_., ADENO_Adenoviridae_., ADENO_Canine_mastadenovirus_., PAP_Papillomaviridae_., )
+  dplyr::select(sample, Q_code, PR_results_short, PR_toxocaris_leonina, PR_sarcocystis, PR_Tania_serialis, PR_cryptosporidium, PR_giardia, sero_toxoplasma_gondii_PR, sero_trichincella_spp_PR, Huldscore, Eukaryota_., Cryptosporidium_., Giardia_., Sarcocystis_., Toxoplasma_gondii_., Toxacaris_., Trichinella_., Uncinaria_., Echinococcus_., Taenia_., Cestoda_., Nematoda_., Virus_., PARVO_Parvoviridae_., PARVO_Bocaparvovirus_., PARVO_Canine_Minute_., PARVO_Canine_bufavirus_., PARVO_Canine_protoparvovirus_., PARVO_Canine_parvovirus_., ADENO_Adenoviridae_., ADENO_Canine_mastadenovirus_., PAP_Papillomaviridae_., )
 
 all_metadata <- dplyr::left_join(metadata, selected_columns, by = "sample") # use for remaining analysis
 ```
@@ -1100,20 +1100,6 @@ Ittoqqortoormii_samples <- all_metadata %>%
                     dplyr::select(sample) %>% pull()
 
 # count_table_cov_size <- rownames_to_column(count_table_cov_size, var = "genome") # only run once
-###################### Elsa's check of structural zeros ###################### 
-count_table_cov_size_pivot <- t(count_table_cov_size) %>%
-  as.data.frame() 
-count_table_cov_size_pivot_sample <- rownames_to_column(count_table_cov_size_pivot, var = "sample")
-count_table_cov_size_pivot_meta <- merge(count_table_cov_size_pivot_sample, all_metadata[, c("sample", "region")], by.x = "sample", by.y = "sample", all.x = TRUE)
-count_table_cov_size_pivot_meta <- column_to_rownames(count_table_cov_size_pivot_meta, "sample")
-ittoq_rows <- count_table_cov_size_pivot_meta[count_table_cov_size_pivot_meta$region == "Ittoqqortoormii", ]
-daneborg_rows <- count_table_cov_size_pivot_meta[count_table_cov_size_pivot_meta$region == "Daneborg", ]
-
-column_sums_ittoq <- colSums(ittoq_rows[, sapply(ittoq_rows, is.numeric) & !(names(ittoq_rows) %in% c("sample", "region"))])
-zero_sum_columns_ittoq <- names(column_sums_ittoq[column_sums_ittoq == 0])
-column_sums_Daneborg <- colSums(daneborg_rows[, sapply(daneborg_rows, is.numeric) & !(names(daneborg_rows) %in% c("sample", "region"))])
-zero_sum_columns_Daneborg <- names(column_sums_Daneborg[column_sums_Daneborg == 0])
-###################### Results match ###################### 
 
 structural_zeros <- count_table_cov_size %>% 
    dplyr::rowwise() %>% #compute for each row (genome)
@@ -1175,11 +1161,11 @@ physeq <- phyloseq(MAGotu, treephylo, sample_tab,taxtable)
 ```
 
 ## CLR transformation and wilcoxon testing
-### Phylum level
+### Genome level
 CLR transforming phyloseq object:
 ```{r clr transform for wilcoxon, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 # Perform CLR transformation
-physeq_clr <- microbiome::transform(physeq, 'clr') # use whenever a package does NOT include its own data transformation
+physeq_clr <- microbiome::transform(physeq, 'clr') # use whenever a package does NOT include its own data transformation (Wilcoxon)
 
 # create regional groups
 Daneborg_physeq <- subset_samples(physeq_clr, region == "Daneborg")
@@ -1236,9 +1222,12 @@ Wilcox_result <- as.data.frame(Wilcox_result)
 Wilcox_result$p_adjusted <- p.adjust(Wilcox_result$Pvalue, method = "fdr")
 
 Wilcox_result_sign <- subset(Wilcox_result, p_adjusted <= 0.05) %>%
-  rownames_to_column(., "Genome")
+  rownames_to_column(., "genome")
 knitr::kable(Wilcox_result_sign, format = "html", full_width = F,col.names = c("Genome", "W", "p-value","p-value adjusted"), digits = 10) %>%
   kable_styling(latex_options="scale_down")
+
+Wilcox_result_sign <- Wilcox_result_sign %>%
+    dplyr::left_join(taxonomyclean,by=join_by(genome==genome))
 ```
 
 ```{r selec_mean_phyla, comment="", echo=FALSE, message=FALSE, warning=FALSE}
@@ -1333,11 +1322,9 @@ means_genus <- means[,c(1,2,14,3,15,4,16,5,17,6,18,7,19,8,20,9,21,10,22,11,23,12
 knitr::kable(means_genus, format = "html", full_width = F, digits = 3) %>%
   kable_styling(latex_options="scale_down")
 ```
-
-Box plots: REDO REDO REDO
 ```{r}
 # Collinsella
-g1<- table.W_filtered_meta %>%
+g1<- table.W.meta_genus %>%
   ggplot(aes(x = region, y = Collinsella, group = region, color = region)) +
   geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE, coef = 0) +
   geom_jitter(width = 0.1, show.legend = TRUE) +
@@ -1349,7 +1336,7 @@ g1<- table.W_filtered_meta %>%
   xlab("Region") + 
   ylab("Collinsella")
 # Blautia_A
-g2<- table.W_filtered_meta %>%
+g2<- table.W.meta_genus %>%
   ggplot(aes(x = region, y = Blautia_A, group = region, color = region)) +
   geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE, coef = 0) +
   geom_jitter(width = 0.1, show.legend = TRUE) +
@@ -1361,7 +1348,7 @@ g2<- table.W_filtered_meta %>%
   xlab("Region") + 
   ylab("Blautia_A")
 # Oliverpabstia
-g3<- table.W_filtered_meta %>%
+g3<- table.W.meta_genus %>%
   ggplot(aes(x = region, y = Oliverpabstia, group = region, color = region)) +
   geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE, coef = 0) +
   geom_jitter(width = 0.1, show.legend = TRUE) +
@@ -1373,7 +1360,7 @@ g3<- table.W_filtered_meta %>%
   xlab("Region") + 
   ylab("Oliverpabstia")
 # Allobaculum
-g4<- table.W_filtered_meta %>%
+g4<- table.W.meta_genus %>%
   ggplot(aes(x = region, y = Allobaculum, group = region, color = region)) +
   geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE, coef = 0) +
   geom_jitter(width = 0.1, show.legend = TRUE) +
@@ -1385,7 +1372,7 @@ g4<- table.W_filtered_meta %>%
   xlab("Region") + 
   ylab("Allobaculum")
 # Paraprevotella
-g5<- table.W_filtered_meta %>%
+g5<- table.W.meta_genus %>%
   ggplot(aes(x = region, y = Paraprevotella, group = region, color = region)) +
   geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE, coef = 0) +
   geom_jitter(width = 0.1, show.legend = TRUE) +
@@ -1397,7 +1384,7 @@ g5<- table.W_filtered_meta %>%
   xlab("Region") + 
   ylab("Paraprevotella")
 # Mucispirillum
-g6<- table.W_filtered_meta %>%
+g6<- table.W.meta_genus %>%
   ggplot(aes(x = region, y = Bacteria_Deferribacterota_Deferribacteres_Deferribacterales_Mucispirillaceae_, group = region, color = region)) +
   geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE, coef = 0) +
   geom_jitter(width = 0.1, show.legend = TRUE) +
@@ -1417,21 +1404,18 @@ grid.arrange(arrangeGrob(g1, g2,g3, g4, g5, g6, ncol = 3))
 ```{r DESeq2 DA P, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 # convert phyloseq object to DESeq object
 region_deseq <- phyloseq_to_deseq2(physeq, ~ region) # DESeq runs with its own transformation, do not use clr data
-
 # run analysis
 region_deseq <- DESeq(region_deseq)
 results_table <- results(region_deseq)
 ```
 ```{r DESeq2 summary DA P, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 deseq_res_ittoq_vs_daneborg <- results(region_deseq, alpha=0.05, contrast=c("region", "Ittoqqortoormii", "Daneborg"))
-
 summary(deseq_res_ittoq_vs_daneborg) 
 # limit to only show results significant at p- adjusted value of 0.05
 sigtab_res_deseq_res_ittoq_vs_daneborg <- deseq_res_ittoq_vs_daneborg[which(deseq_res_ittoq_vs_daneborg$padj < 0.05), ]
-
 summary(sigtab_res_deseq_res_ittoq_vs_daneborg) 
 ```
-there are 246 MAGs enriched in ittoq compared to Daneborg, 138 showing decreased expression in ittoq compared to daneborg
+there are 111 MAGs enriched in ittoq compared to Daneborg, 62 showing decreased expression in ittoq compared to daneborg
 
 Add in taxonomic information and sort by baseMean
 ```{r DESeq2 DA P baseMean, comment="", echo=FALSE, message=FALSE, warning=FALSE}
@@ -1489,6 +1473,7 @@ sigtab_res_deseq_res_ittoq_vs_daneborg_genus <- deseq_res_ittoq_vs_daneborg_genu
 
 summary(sigtab_res_deseq_res_ittoq_vs_daneborg_genus) 
 ```
+34 genera enriched in Ittoq, 8 in Daneborg
 ```{r DESeq2 DA G stats, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 sigtab_deseq_genus <- deseq_res_ittoq_vs_daneborg_genus[which(deseq_res_ittoq_vs_daneborg_genus$padj < 0.05), ]
 
@@ -1532,18 +1517,17 @@ phylo_counts <- count_table_cov_size %>%
                     filter(!genome %in% structural_zeros$genome) %>% # remove structural zeros
                     column_to_rownames("genome") %>% 
                     mutate_all(~ replace(., . == 0, 0.00001)) %>% #add pseudo counts to avoid structural zero issues 
-                    otu_table(., taxa_are_rows = TRUE) #convert to phyloseq otu_table object
+                    otu_table(., taxa_are_rows = TRUE)
 
 phylo_taxonomy <- taxonomyclean %>% 
                     filter(genome %in% rownames(phylo_counts)) %>% # remove structural zeros
                     mutate(genome2=genome) %>% #create a pseudo genome name column
                     column_to_rownames("genome2") %>% 
-                    dplyr::select(domain,phylum,class,order,family,genus,species,genome) %>% 
+                    dplyr::select(domain,phylum,class,order,family,genus,species,genome) %>% # include all taxonomic information to ensure genome-level analysis
                     as.matrix() %>% 
-                    tax_table() #convert to phyloseq tax_table object
+                    tax_table()
 
-#Generate phyloseq object required to input ANCOMBC
-# only difference is the addition of the psudocounts
+#Generate phyloseq object required to input ANCOMBC, only difference between this phyloseq object and the one for DESeq is the addition of the psudocounts
 physeq_ancom <- phyloseq(phylo_counts, phylo_taxonomy, phylo_samples)
 ```
 
@@ -1552,7 +1536,7 @@ physeq_ancom <- phyloseq(phylo_counts, phylo_taxonomy, phylo_samples)
 set.seed(1234) #set seed for reproducibility
 ancom_output <- ancombc2(physeq_ancom, 
                   assay_name = "counts", 
-                  tax_level = NULL,
+                  tax_level = NULL, # no defined tax level
                   fix_formula = "region",
                   p_adj_method = "holm", 
                   pseudo_sens = TRUE,
@@ -1595,7 +1579,7 @@ ancom_result %>%
 ```{r}
 ancom_result %>%
     filter(q_regionIttoqqortoormii < 0.05) %>%
-    ggplot(., aes(x=lfc_regionIttoqqortoormii, y=forcats::fct_rev(phylum), color=phylum)) +
+    ggplot(., aes(x=lfc_regionIttoqqortoormii, y=forcats::fct_rev(genus), color=phylum)) +
       geom_jitter(size=3) +
       geom_vline(xintercept=0) + 
       xlim(-max(ancom_result$lfc_regionIttoqqortoormii)-2,max(ancom_result$lfc_regionIttoqqortoormii)+2) +
@@ -1608,9 +1592,6 @@ ancom_result %>%
           axis.title.x=element_blank())+
       labs(y="Phylum",x="Genome counts") + 
       guides(col=guide_legend("Phylum"))
-
-
-
 ```
 ```{r}
 #Enriched Daneborg
@@ -1631,7 +1612,7 @@ ancom_result %>%
 ```
 ```{r ANCOM-BC DA P plotting, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 ancom_result %>%
-  ggplot(., aes(x=forcats::fct_rev(genome), y=lfc_regionIttoqqortoormii, color=phylum)) + 
+  ggplot(., aes(x=forcats::fct_rev(genus), y=lfc_regionIttoqqortoormii, color=phylum)) + 
   geom_point(size=4) + 
   scale_color_manual(values=colors_alphabetic$colors) + 
   geom_hline(yintercept=0) + 
@@ -1645,7 +1626,7 @@ ancom_result %>%
 set.seed(1234) #set seed for reproducibility
 ancom_output_genus <- ancombc2(physeq_ancom, 
                   assay_name = "counts", 
-                  tax_level = "genus",
+                  tax_level = "genus", # limit calculations to genus level
                   fix_formula = "region",
                   p_adj_method = "holm", 
                   pseudo_sens = TRUE,
@@ -1688,7 +1669,7 @@ ancom_result_genus %>%
 ```{r}
 ancom_result_genus %>%
     filter(q_regionIttoqqortoormii < 0.05) %>%
-    ggplot(., aes(x=lfc_regionIttoqqortoormii, y=forcats::fct_rev(phylum), color=phylum)) +
+    ggplot(., aes(x=lfc_regionIttoqqortoormii, y=forcats::fct_rev(genus), color=phylum)) +
       geom_jitter(size=3) +
       geom_vline(xintercept=0) + 
       xlim(-max(ancom_result_genus$lfc_regionIttoqqortoormii)-2,max(ancom_result_genus$lfc_regionIttoqqortoormii)+2) +
@@ -1708,7 +1689,7 @@ ancom_result_genus %>%
   filter(lfc_regionIttoqqortoormii < 0) %>% 
   filter(q_regionIttoqqortoormii < 0.05) %>% # note use of q here
   arrange(lfc_regionIttoqqortoormii) %>%
-  dplyr::select(genus,lfc_regionIttoqqortoormii,phylum,q_regionIttoqqortoormii) %>%
+  dplyr::select(genome,lfc_regionIttoqqortoormii,q_regionIttoqqortoormii) %>%
   kable()
 
 # Enriched Ittoq
@@ -1716,7 +1697,7 @@ ancom_result_genus %>%
   filter(lfc_regionIttoqqortoormii > 0) %>% 
   filter(q_regionIttoqqortoormii < 0.05) %>% 
   arrange(-lfc_regionIttoqqortoormii) %>%
-  dplyr::select(genus,lfc_regionIttoqqortoormii,phylum,q_regionIttoqqortoormii) %>%
+  dplyr::select(genome,lfc_regionIttoqqortoormii,q_regionIttoqqortoormii) %>%
   kable()
 
 ## need to figure out column naming and why it isnt working.
@@ -1863,19 +1844,13 @@ count_ALDEx.all %>%
   dplyr::select(genome,effect,phylum,order,genus) %>%
   kable()
 ```
-
 ### LinDA
-#### phylum level
+#### Genome level
 ```{r LinDA DA P, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-tse_LinDA = mia::makeTreeSummarizedExperimentFromPhyloseq(physeq) # create tse object
+tse_LinDA = mia::makeTreeSummarizedExperimentFromPhyloseq(physeq) # create tse object from the phyloseq object with structural zeros removed, no pseudo counts. 
 tse_LinDA <- mia::subsetByPrevalentTaxa(tse_LinDA, detection = 0, prevalence = 0.1) # filter tse object
 ```
 ```{r LinDA DA P analysis, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-# Un-comment lines below to install LinDA from GitHub if needed
-# install.packages(c("modeest", "lmerTest", "foreach", "parallel", "ggplot2", "ggrepel"))
-# install.packages("devtools")
-# devtools::install_github("zhouhj1994/LinDA")
-
 otu.tab <- as.data.frame(assay(tse_LinDA))
 meta <- as.data.frame(colData(tse_LinDA)) %>% dplyr::select(region)
 LinDA <- LinDA::linda(
@@ -1905,7 +1880,7 @@ LinDA_table <- LinDA_table %>%
 
 ```
 ```{r LinDA DA P plotting, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(LinDA_table, aes(x=forcats::fct_rev(genome), y=log2FoldChange, color=phylum)) + 
+ggplot(LinDA_table, aes(x=forcats::fct_rev(genus), y=log2FoldChange, color=phylum)) + 
   geom_point(size=4) + 
   scale_color_manual(values=colors_alphabetic$colors) + 
   geom_hline(yintercept=0) + 
@@ -1914,7 +1889,6 @@ ggplot(LinDA_table, aes(x=forcats::fct_rev(genome), y=log2FoldChange, color=phyl
   ylab("log2FoldChange")+
   guides(col=guide_legend("Phylum"))
 ```
-
 #### genus level
 ```{r LinDA DA G, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 physeq.genus_LinDA <- tax_glom(physeq, 'genus')
@@ -1959,7 +1933,84 @@ ggplot(LinDA_table_genus, aes(x=forcats::fct_rev(genus), y=log2FoldChange, color
   ylab("log2FoldChange")+
   guides(col=guide_legend("Phylum"))
 ```
-# Func DA
+#### Merged DA
+```{r merged genome}
+Wilcoxon_genome <- Wilcox_result_sign %>%
+  dplyr::select(., genome, p_adjusted) %>%
+  dplyr::rename(
+    padj_WILCOX = p_adjusted,
+    )
+DESeq_genome <- sigtab_deseq_region_with_tax %>%
+  dplyr::select(., genome, padj, log2FoldChange) %>%
+  dplyr::rename(
+    padj_DESEQ = padj,
+    LogFold_DESEQ = log2FoldChange,
+    )
+ANCOMBC_genome <- ancom_result %>%
+  filter(q_regionIttoqqortoormii < 0.05) %>%
+  dplyr::select(., genome, q_regionIttoqqortoormii, lfc_regionIttoqqortoormii) %>%
+  dplyr::rename(
+    padj_ANCOMBC = q_regionIttoqqortoormii,
+    LogFold_ANCOMBC = lfc_regionIttoqqortoormii,
+    )
+LinDA_genome <- LinDA_table  %>%
+  filter(padj < 0.05) %>%
+  dplyr::select(., genome, padj, log2FoldChange)  %>%
+  dplyr::rename(
+    padj_LINDA = padj,
+    LogFold_LINDA = log2FoldChange,
+    )
+taxonomyclean_genome <- taxonomyclean %>%
+  dplyr::select(., phylum, class, order, family, genus, species, genome)
+  
+DA_results_list <- list(Wilcoxon_genome, DESeq_genome, ANCOMBC_genome, LinDA_genome)
+DA_results<- Reduce(function(x, y) merge(x, y, all=TRUE), DA_results_list) 
+DA_results <- dplyr::left_join(DA_results, taxonomyclean_genome, by = "genome")
+
+# library("writexl")
+# write_xlsx(DA_results, "/Users/elsa/Desktop/THESIS/sled_dog_parasite\\DA_genome_tax.xlsx")
+```
+```{r merged genus}
+Wilcoxon_genus <- Wilcox_result_sign_genus %>%
+  dplyr::select(., Genus, p_adjusted) %>%
+  dplyr::rename(
+    padj_WILCOX = p_adjusted,
+    genus = Genus
+    )
+DESeq_genus <- sigtab_deseq_with_tax2 %>%
+  dplyr::select(., genus, padj, log2FoldChange) %>%
+  dplyr::rename(
+    padj_DESEQ = padj,
+    LogFold_DESEQ = log2FoldChange,
+    )
+ancom_result_genus$genome <- sub("genus:", "", ancom_result_genus$genome)
+ANCOMBC_genus <- ancom_result_genus %>%
+  filter(q_regionIttoqqortoormii < 0.05) %>%
+  dplyr::select(., genome, q_regionIttoqqortoormii, lfc_regionIttoqqortoormii) %>%
+  dplyr::rename(
+    padj_ANCOMBC = q_regionIttoqqortoormii,
+    LogFold_ANCOMBC = lfc_regionIttoqqortoormii,
+    genus = genome
+    )
+LinDA_genus <- LinDA_table_genus  %>%
+  filter(padj < 0.05) %>%
+  dplyr::select(., genus, padj, log2FoldChange)  %>%
+  dplyr::rename(
+    padj_LINDA = padj,
+    LogFold_LINDA = log2FoldChange,
+    )
+taxonomyclean_genus <- taxonomyclean %>%
+  dplyr::select(., phylum, class, order, family, genus)
+  
+DA_results_list_genus <- list(Wilcoxon_genus, DESeq_genus, ANCOMBC_genus, LinDA_genus)
+DA_results_genus <- Reduce(function(x, y) merge(x, y, all=TRUE), DA_results_list_genus) 
+DA_results_genus <- dplyr::left_join(DA_results_genus, taxonomyclean_genus, by = "genus")
+DA_results_genus <- DA_results_genus[!duplicated(DA_results_genus), ]
+
+# library("writexl")
+# write_xlsx(DA_results_genus, "/Users/elsa/Desktop/THESIS/sled_dog_parasite\\DA_genus4.xlsx")
+```
+# Functional Capacity Differences
 Kegg data prep from EHI workflow
 ```{r kegg data prep from EHI, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 # Microbiome functional attribute table
