@@ -1099,13 +1099,27 @@ Ittoqqortoormii_samples <- all_metadata %>%
                     filter(region == "Ittoqqortoormii") %>% 
                     dplyr::select(sample) %>% pull()
 
-count_table_cov_size <- rownames_to_column(count_table_cov_size, var = "genome") # only run once
+# count_table_cov_size <- rownames_to_column(count_table_cov_size, var = "genome") # only run once
+###################### Elsa's check of structural zeros ###################### 
+count_table_cov_size_pivot <- t(count_table_cov_size) %>%
+  as.data.frame() 
+count_table_cov_size_pivot_sample <- rownames_to_column(count_table_cov_size_pivot, var = "sample")
+count_table_cov_size_pivot_meta <- merge(count_table_cov_size_pivot_sample, all_metadata[, c("sample", "region")], by.x = "sample", by.y = "sample", all.x = TRUE)
+count_table_cov_size_pivot_meta <- column_to_rownames(count_table_cov_size_pivot_meta, "sample")
+ittoq_rows <- count_table_cov_size_pivot_meta[count_table_cov_size_pivot_meta$region == "Ittoqqortoormii", ]
+daneborg_rows <- count_table_cov_size_pivot_meta[count_table_cov_size_pivot_meta$region == "Daneborg", ]
+
+column_sums_ittoq <- colSums(ittoq_rows[, sapply(ittoq_rows, is.numeric) & !(names(ittoq_rows) %in% c("sample", "region"))])
+zero_sum_columns_ittoq <- names(column_sums_ittoq[column_sums_ittoq == 0])
+column_sums_Daneborg <- colSums(daneborg_rows[, sapply(daneborg_rows, is.numeric) & !(names(daneborg_rows) %in% c("sample", "region"))])
+zero_sum_columns_Daneborg <- names(column_sums_Daneborg[column_sums_Daneborg == 0])
+###################### Results match ###################### 
 
 structural_zeros <- count_table_cov_size %>% 
-   rowwise() %>% #compute for each row (genome)
-   mutate(all_zeros_Ittoq = all(c_across(all_of(Ittoq_samples)) == 0)) %>% # set true if all samples in Ittoq have zeros
+   dplyr::rowwise() %>% #compute for each row (genome)
+   mutate(all_zeros_Ittoq = all(c_across(all_of(Ittoqqortoormii_samples)) == 0)) %>% # set true if all samples in Ittoq have zeros
    mutate(all_zeros_Daneborg = all(c_across(all_of(Daneborg_samples)) == 0)) %>% # set true if all samples in Daneborg have zeros
-   mutate(average_Ittoq = mean(c_across(all_of(Ittoq_samples)), na.rm = TRUE)) %>% # get average genome counts across Ittoq
+   mutate(average_Ittoq = mean(c_across(all_of(Ittoqqortoormii_samples)), na.rm = TRUE)) %>% # get average genome counts across Ittoq
    mutate(average_Daneborg = mean(c_across(all_of(Daneborg_samples)), na.rm = TRUE)) %>% # get average genome counts across Daneborg
    filter(all_zeros_Ittoq == TRUE || all_zeros_Daneborg==TRUE)  %>% # filter only genomes with structural zeros
    mutate(present = case_when(
@@ -1398,7 +1412,6 @@ g6<- table.W_filtered_meta %>%
 library(gridExtra)
 grid.arrange(arrangeGrob(g1, g2,g3, g4, g5, g6, ncol = 3))
 ```
-
 ## DESeq2
 ### Genome level
 ```{r DESeq2 DA P, comment="", echo=FALSE, message=FALSE, warning=FALSE}
@@ -2321,54 +2334,86 @@ ce12<- ggplot(GIFTs_elements_community_df, aes(x = region, y = S0201, group = re
 library(gridExtra)
 grid.arrange(arrangeGrob(ce1, ce2,ce3, ce4, ce5, ce6, ce7, ce8, ce9, ce10, ce11, ce12, ncol = 4))
 ```
-# UPSETRDA
+# UPSET RDA
 ```{r}
 ## Upset visualization: MAGs in different locations and shared among locations
 library(UpSetR)
 locationcolors=c('#c4d7d1','#408892')
 
-MAGrel <- count_table_cov_size[, -which(names(count_table_cov_size) == "genome")]
-MAGrel_pa=1*(MAGrel>0)
-#MAGrel_pa[1:6,1:6]
-table_upset_analysis_cont=t(aggregate(t(MAGrel_pa),by=list(all_metadata$region),FUN=sum)[,-1])
-colnames(table_upset_analysis_cont)=levels(as.factor(all_metadata$region))
-table_upset_analysis=(table_upset_analysis_cont>0)*1
-table_upset_analysis=data.frame(table_upset_analysis)
-table_upset_analysis=apply(table_upset_analysis,2,as.integer)
-rownames(table_upset_analysis) <- rownames(MAGrel_pa)
+count_table_rda_binary <- ifelse(count_table_cov_size > 0, 1, 0) %>%
+  as.data.frame()
+count_table_rda_binary_ittoq <- count_table_rda_binary[, colnames(count_table_rda_binary) %in% Ittoq_samples]
+count_table_rda_binary_ittoq$sum_of_rows <- rowSums(count_table_rda_binary_ittoq)
+count_table_rda_binary_ittoq <- rownames_to_column(count_table_rda_binary_ittoq, var="genome")
+ittoq_summed <- count_table_rda_binary_ittoq[, c('sum_of_rows', "genome")]
+colnames(ittoq_summed)[colnames(ittoq_summed) == 'sum_of_rows'] <- 'Ittoq'
+
+count_table_rda_binary_daneborg <- count_table_rda_binary[, colnames(count_table_rda_binary) %in% Daneborg_samples]
+count_table_rda_binary_daneborg$sum_of_rows <- rowSums(count_table_rda_binary_daneborg)
+count_table_rda_binary_daneborg <- rownames_to_column(count_table_rda_binary_daneborg, var="genome")
+daneborg_summed <- count_table_rda_binary_daneborg[, c('sum_of_rows', "genome")]
+colnames(daneborg_summed)[colnames(daneborg_summed) == 'sum_of_rows'] <- 'Daneborg'
+
+upsetrda_1 <- merge(ittoq_summed, daneborg_summed, by = "genome", all =T )
+upsetrda_1 <- column_to_rownames(upsetrda_1, var='genome')
+upset_binary <- ifelse(upsetrda_1 > 0, 1, 0)
 
 #pdf("figures/MAG_intersection.pdf",width=8,height=6, onefile=F)
-upset(as.data.frame(table_upset_analysis),
+upset(as.data.frame(upset_binary),
       keep.order = T,
-      sets = rev(c("Daneborg","Ittoqqortoormii")),
+      sets = rev(c("Daneborg","Ittoq")),
       sets.bar.color= rev(locationcolors),
       mb.ratio = c(0.55, 0.45), order.by = "freq")
 #dev.off()
 ```
-#RDA
+##RDA
+```{r physeq object with normalized counts, structural zeros included}
+# OTU table
+MAGotu_zeros <- count_table_cov_size %>% # genome size normalized counts
+  column_to_rownames("genome") %>%
+  otu_table(., taxa_are_rows = TRUE)
+# Tax table
+taxonomyclean1 <- taxonomyclean[,-1]
+taxmatrix <- as.matrix(taxonomyclean1[1:8])
+rownames(taxmatrix) <- taxonomyclean$genome
+taxtable <- tax_table(taxmatrix) 
+#Metadata
+metadata <- na.omit(metadata)
+rownames(metadata) <- NULL
+metadata.pre <- column_to_rownames(metadata, "sample")
+#Sample table
+sample_tab <- sample_data(metadata.pre)
+# Tree
+tree <- phytools::force.ultrametric(tree, method = "extend")
+treephylo = phyloseq::phy_tree(tree)
+## Merge into phyloseq object
+physeq_rda <- phyloseq(MAGotu_zeros, treephylo, sample_tab,taxtable)
+```
 ```{r}
-count_table_rda <- data.frame(physeq@otu_table)
-count_table_t <- data.frame(t(count_table_rda))
-hel1 <- decostand(count_table_t, "hellinger")
+## RDA
+count_table_rda <- data.frame(physeq_rda@otu_table)
+count_table_rda_t <- data.frame(t(count_table_rda))
+hel1 <- decostand(count_table_rda_t, "hellinger")
 
-physeq_clr <- microbiome::transform(physeq, 'clr')
+physeq_rda_clr <- microbiome::transform(physeq_rda, 'clr')
 
-count_crl <- data.frame(physeq_clr@otu_table)
-count_crl_t <- data.frame(t(count_crl))
-metadata_crl <- data.frame(physeq_clr@sam_data)
-metadata_crl <- rownames_to_column(metadata_crl, "sample")
-metadata_crl <- metadata_crl[match(rownames(count_crl_t),metadata_crl$sample),]
-#mean(rownames(count_crl_t)==metadata_crl$sample)
-#metadata_crl$Day=factor(metadata_crl$Day)
-design <- metadata_crl[, c("sample", "region")]
+count_rda_clr <- data.frame(physeq_rda_clr@otu_table)
+count_rda_crl_t <- data.frame(t(count_rda_clr))
+metadata_rda_crl <- data.frame(physeq_rda_clr@sam_data)
+metadata_rda_crl <- rownames_to_column(metadata_rda_crl, "sample")
+metadata_rda_crl <- metadata_rda_crl[match(rownames(count_rda_crl_t),metadata_rda_crl$sample),]
+mean(rownames(count_rda_crl_t)==metadata_rda_crl$sample)
+metadata_rda_crl$region=factor(metadata_rda_crl$region)
+design <- metadata_rda_crl[, c("region", "sex")]
 
-rda.model <- rda(count_crl_t ~ region, data = design)# Run the model
+rda.model <- rda(count_rda_crl_t ~ region, data = design)# Run the model
 rda.model.hel <- rda(hel1 ~ region, data = design)# Run the model
-
-#Anova
+#summary(rda.model)
+# Anova
 anova(rda.model)
 anova(rda.model.hel)
-
+# anova(hel_rda,by="axis")
+# summary(hel_rda)
 RsquareAdj(rda.model)
 RsquareAdj(rda.model.hel)
 anova.cca(rda.model, step = 1000)
@@ -2379,8 +2424,7 @@ perc <- round(100*(summary(rda.model)$cont$importance[2, 1:2]), 2)
 sc_si <- vegan::scores(rda.model, display="sites", choices=c(1,2), scaling=1)
 sc_sp <- vegan::scores(rda.model, display="species", choices=c(1,2), scaling=1)
 sc_bp <- vegan::scores(rda.model, display="bp", choices=c(1, 2), scaling=1)
-```
-```{r}
+
 # Prepare data for plotting
 rda_sc_wa <- vegan::scores(rda.model,
                            display = "wa",
@@ -2416,11 +2460,8 @@ all_dataframe <- data.frame(rda_sc_wa, design)
 # Plot
 ggplot(all_dataframe, aes(y = PC1, x = RDA1)) +
   geom_point(aes(y = PC1, x = RDA1, colour = region)) +
-  # text
   xlab(paste0("RDA1 (", perc[1], "%)")) +
   ylab(paste0("PC1 (", perc[2], "%)")) +
-  #  ggtitle("TITLE") +
-  # segment
   geom_segment(data = HighFit_ASVs,
                aes(x = 0, xend = RDA1, y = 0, yend = PC1),
                arrow = arrow(length = unit(0.25, "cm")),
@@ -2435,7 +2476,6 @@ ggplot(all_dataframe, aes(y = PC1, x = RDA1)) +
                    show.legend = FALSE,
                    colour = "grey",
                    max.overlaps = 20) +
-  #  scale_colour_manual(values = c("red", "blue")) +
   scale_shape_discrete(solid = TRUE) +
   theme_bw() +
   theme(
@@ -2444,46 +2484,79 @@ ggplot(all_dataframe, aes(y = PC1, x = RDA1)) +
   )
 
 ```
-
-################# RQL ####################
 #RQL
 ```{r}
-counts_table <- read.table(counts_file, sep="\t",row.names=1,header=T)
-coverage_table <- read.table(coverage_file, sep="\t",row.names=1,header=T)
-metadata <- read.table(metadata_file,sep="\t",header=T)%>%
-	dplyr::rename(sample=EHI_plaintext)
-mags_table <- read.table(taxonomy_file,sep="\t",header=T)
-tree <- read.tree(tree_file)
-```
-
-```{r}
 # Abundance table
-genome_counts <- counts_table %>%
+genome_counts=count_table_cov_size
+genome_counts <- genome_counts %>%
   column_to_rownames(., "genome")
 # Metadata
 metadata=all_metadata
 # MAG stats (mag_length)
-counts_raw=read_tsv("~/Documents/Projects/Domesticat/count_table.tsv")%>%
-  dplyr::rename(genome=1) %>%  
-  dplyr::rename_all(~ str_replace_all(., "DomestiCAT-", ""))  %>%
-  dplyr::rename_all(~ str_replace_all(., "DomestiCAT_", "")) %>%
-  dplyr::rename_all(~ str_replace_all(., "-", "_"))
+counts_raw=mags_table
 
-stats <- counts_raw[,c(1,4)] %>%
-  dplyr::rename(mag_length = 'Malaysia_501 Length') %>%
+stats <- counts_raw[,c(1,11)] %>%
   as.data.frame()%>%
   column_to_rownames(., "genome")
 
 # MAG taxonomy
-mags_table <- mags_table
-
-annotation_raw <- filtered_df
-GIFTs <- distill(annotation_raw,GIFT_db,genomecol=2,annotcol=c(9,10,19))
-GIFTs_elements <- to.elements(GIFTs,GIFT_db)
-GIFTs_functions <- to.functions(GIFTs_elements,GIFT_db)
-GIFTs_domains <- to.domains(GIFTs_functions,GIFT_db)
+mags_table <- taxonomyclean
 ```
-################# Kraken ####################
+## Standardization and correction
+```{r}
+mag_weighted <- round(
+  sweep(genome_counts, MARGIN = 1, 1000, `*`), 0 
+)
+
+mag_weighted <- mag_weighted %>%
+  rownames_to_column(., var = "mag") %>%
+  pivot_longer(!mag, names_to = "sample", values_to = "counts") %>%
+  pivot_wider(names_from = "mag", values_from = "counts") %>%
+  arrange(sample) %>%
+  column_to_rownames(var = "sample")
+
+# metadata summary
+design <- metadata[, c(
+  "sample", "region", "sex"
+)]
+design$region<-0
+design$region[design$region=="Daneborg"]<-1
+for(i in 1:ncol(design)){
+  if(is.character(design[,i])){
+    design[,i]<-factor(design[,i])
+  }
+}
+design$sex<-0
+design$sex[design$sex=="Male"]<-1
+for(i in 1:ncol(design)){
+  if(is.character(design[,i])){
+    design[,i]<-factor(design[,i])
+  }
+}
+# MAG functional annotations (DAMMA)
+functions <- GIFTs_functions %>%
+  as.data.frame()
+functions <- functions[,colSums(functions)>0]
+```
+## RLQ analysis (functions)
+```{r}
+mag_weighted_rel <- decostand(mag_weighted,method = "total")
+mag_weighted_rel_log <- log1p(mag_weighted_rel)
+```
+```{r}
+#Correspondence analysis (dudi.coa) is applied to the species table.
+AnalysisL_functions <- dudi.coa(mag_weighted_rel_log, scannf = FALSE)
+
+#Separate analyses of traits and environmental variables should be weighted by the sites and species weights derived from the previous correspondence analysis.
+#Principal Component Analysis (PCA) if all variables are continuous
+# AnalysisQ_functions <- dudi.pca(functions, row.w = AnalysisL_functions$cw,scannf = FALSE)
+#Hill and smith analysis if there is a mix of continuous and categorical variables. Hill and smith analysis is calculated with dudi.hillsmith()
+AnalysisR_functions <- dudi.hillsmith(design[,c(5,6)], row.w = AnalysisL_functions$lw,scannf = FALSE)#function that allows to consider mix of different types of variables
+```
+```{r}
+rlq.functions <- rlq(AnalysisR_functions, AnalysisL_functions, AnalysisQ_functions,scannf = FALSE)
+summary(rlq.functions)
+```
 #Kraken
 ```{r Percent Eukaryotic summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 summary(all_metadata$Eukaryota_.)
