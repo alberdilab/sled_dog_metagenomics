@@ -63,7 +63,7 @@ library(gridExtra)
 
 ## 1.2 Load the data
 ```{r loaddata, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-load("/Users/jtk712/Documents/Projects/sled_dog_metagenomics/resources/data/data.Rdata")
+load("resources/data/data.Rdata")
 ```
 
 ```{r summary, echo=FALSE, message=FALSE, warning=FALSE}
