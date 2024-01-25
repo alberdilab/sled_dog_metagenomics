@@ -1,415 +1,27 @@
 ---
-title: "Elsa-analysis1"
+title: "rest"
 output: html_document
-date: "`r Sys.Date()`"
+date: "2024-01-25"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-# 1. Set up working Environment
 
-## 1.1 Load required libraries:
-```{r libraries, echo=FALSE, message=FALSE, warning=FALSE}
-## Load required libraries
-library(ggnewscale)
-library(ggtree)
-library(R.utils)
-library(tidyverse)
-library(ape)
-library(devtools)
-library(ggplot2)
-library(hillR)
-library(spaa)
-library(vegan)
-library(hilldiv2) # note use of hilldiv2 rather than hilldiv
-library(Rhdf5lib)
-library(phyloseq)
-library(phytools)
-library(microbiome) 
-library(matrixStats)
-library(microbiomeutilities) 
-library(lme4)
-library(MuMIn)
-library(nlme)
-library(knitr) 
-library(kableExtra)
-library(pairwiseAdonis)
-library(sjPlot)
-library(distillR) 
-library(RColorBrewer)
-library(reshape2)
-library(ggpubr)
-library(ggdendro)
-library(grid)
-library(gplots)
-library(dendextend)
-library(stringr) 
-library(Rtsne) 
-library(glue) 
-library(ggtree)
-library(ggrepel)
-library(ggpubr)
-library(ggnewscale)
-library(ggtreeExtra)
-library(DESeq2)
-library(ANCOMBC)
-library(lefser)
-library(dplyr)
-library(mia)
-library(pheatmap)
-```
-##1.2 Establish workflow variables directories
-```{r directories, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-## set variable names for files, and working directory
 
-workingdir="/Users/elsa/Desktop/THESIS/sled_dog_parasite"
-counts_file="/Users/elsa/Desktop/THESIS/sled_dog_parasite/DMB0032_counts.tsv"
-tree_file="/Users/elsa/Desktop/THESIS/sled_dog_parasite/DMB0032.tree"
-taxonomy_file="/Users/elsa/Desktop/THESIS/sled_dog_parasite/DMB0032_mag_info.tsv"
-metadata_file="/Users/elsa/Desktop/THESIS/sled_dog_parasite/DMB0032_metadata.tsv"
-coverage_file="/Users/elsa/Desktop/THESIS/sled_dog_parasite/DMB0032_coverage.tsv"
-```
-```{r loaddata, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-## Load data 
-setwd(workingdir)
 
-batch="DMB0032" # this specifies the batch of data within the EHI data framework
 
-counts_table <- read.table(counts_file, sep="\t",row.names=1,header=T)
-coverage_table <- read.table(coverage_file, sep="\t",row.names=1,header=T)
-metadata <- read.table(metadata_file,sep="\t",header=T)%>%
-	dplyr::rename(sample=EHI_plaintext)
-mags_table <- read.table(taxonomy_file,sep="\t",header=T)
-tree <- read.tree(tree_file)
 
-# Load EHI taxonomy colours. Un-comment this line if download is necessary
-#colours_URL="https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv"
-#download.file(colours_URL, "ehi_phylum_colors.tsv")
 
-ehi_phylum_colors <- read.table("~/Desktop/Thesis/R-analysis1/ehi_phylum_colors.tsv",sep="\t",header=T,comment.char = "")
 
-#Fromat data for analysis, delete *__ from the taxonomy names
-ehi_phylum_colors1 <- ehi_phylum_colors %>%
-  mutate_at(vars(phylum), ~ stringr::str_replace(., "[dpcofgs]__", ""))
-taxonomyclean <- mags_table%>%
-  mutate_at(vars(domain,phylum,class,order,family,genus,species), ~ str_replace(., "[dpcofgs]__", ""))
-```
-```{r summary, echo=FALSE, message=FALSE, warning=FALSE}
-nsamples <- ncol(counts_table) # define number of samples, by reading from the counts table
-metagenomic_bases <- sum(metadata$metagenomic_bases)
-host_bases <- sum(metadata$host_bases)
-discarded_bases <- sum(round(((metadata$metagenomic_bases+metadata$host_bases)/(1-metadata$bases_lost_fastp_percent))-(metadata$metagenomic_bases+metadata$host_bases))) #define amount of discarded bases from quality filtering
-total_bases <- discarded_bases + host_bases + metagenomic_bases
-singlem_bases <- sum(metadata$metagenomic_bases * metadata$singlem_fraction) 
-nmags <- nrow(counts_table) # establish number of MAGs for analysis
-new_species <- mags_table %>%
-	filter(species == "s__") %>%
-	nrow()
-
-sequencing_depth <- colSums(counts_table)
-sequencing_depth_sum <- sum(sequencing_depth)
-sequencing_depth_mean <- mean(sequencing_depth)
-sequencing_depth_sd <- sd(sequencing_depth)
-```
-
-# 2 Data pre-processing
-
-## 2.1 General statistics
-
-**Number of samples in total**
-```{r nsamples, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-ncol(counts_table) # 58 samples
-```
-**Number of MAGs**
-The number of metagenome-assembled genomes (MAG) or draft bacterial genomes reconstructed from the metagenomic data.
-
-```{r nmags, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-cat(nmags) # 555 MAGs
-```
-**Amount of total data (GB):**
-The amount of total DNA data sequenced in gigabases (GB, one billion nucleotide bases).
-
-```{r totalGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-totalgb <- round(total_bases / 1000000000,2) # convert to GB 
-cat(totalgb) # 333.71 GB produced
-```
-**Amount of discarded data (GB):**
-The amount of data discarded due to low quality or lack of informativeness during data preprocesing. Discarding 5-15% of the produced data is within the expected range, due to formation of adaptor dimers, inclusion of adaptors in sequencing reads due to short insert sizes, low sequencing quality, etc.
-
-```{r discardedGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-discardgb <- round(discarded_bases / 1000000000,2) # quality filtering
-cat(discardgb) # 10.37 GB discarded
-```
-**Amount of discarded data (in % of the raw data):**
-
-```{r %discarded, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-discarddata <- round(discarded_bases / total_bases * 100,2) 
-cat(discarddata) # 3.11% removed after quality filtering
-```
-**Amount of host data (GB):**
-The amount of data mapped against the host genome. The percentage refers to the amount of data mapped to the host genome respect to quality-filtered data. Note that this value can be very variable depending on the biological features of the sample (e.g., anal swabs contain more host DNA than faeces) and the employed reference genome (e.g., the chances for mapping to the genome are lower as the distance between) the study species and the employed reference genome differ).
-
-```{r hostGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-hostGB <- round(host_bases / 1000000000,2)
-cat(hostGB) # 6.49 GB from host
-```
-**Amount of host data (% of the quality-filtered data):**
-
-```{r host%, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-hostdata <- round(host_bases / (total_bases-discarded_bases) * 100,2)
-cat(hostdata) # 2.01% of quality filtered data is from host
-```
-**Estimated prokaryotic data:** 
-The amount and proportion of data belonging to prokayotic genomes respect to the total metagenomic fraction, as estimated from singleM analysis. Note that this is an estimation that relies on the genome sizes of genomes available in reference databases. If a given taxon is not properly represented, genome size estimations can be less accurate.
-
-```{r prokaGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-prokaGB <- round(singlem_bases / 1000000000,2)
-cat(prokaGB) # 293.14 GB prokaryotic data
-```
-**Estimated prokaryotic data (% of the metagenomic data):** 
-
-```{r proka%, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-prokadata <- round(singlem_bases / (metagenomic_bases) * 100,2)
-cat(prokadata) # 92.51% of metagenomic data is prokaryotic
-```
-**Amount of metagenomic data (GB):**
-The amount of data mapped against the host genome. The percentage refers to the amount of data mapped to the host genome respect to quality-filtered data. Note that this value can be very variable depending on the biological features of the sample (e.g., anal swabs contain more host DNA than faeces) and the employed reference genome (e.g., the chances for mapping to the genome are lower as the distance between) the study species and the employed reference genome differ).
-
-```{r metaGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-metaGB <- round(metagenomic_bases / 1000000000,2)
-cat(metaGB) # 316.85 GB metagenomic data
-```
-**Amount of metagenomic data (% of the quality-filtered data):**
-
-```{r meta%, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-metaperce <- round(metagenomic_bases / (total_bases-discarded_bases) * 100,2)
-cat(metaperce) # 97.99%  quality filtered data is metagenomic
-```
-**Total mapped sequencing depth (million reads):**
-The amount of reads (and nucleotide bases) that were mapped to the entire MAG catalogue. Note that the amount of bases is only an approximation estimated by multiplying the exact number of mapped reads by 250 bp.
-
-```{r totalreads, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-totalreads <- round(sequencing_depth_sum / 1000000,2)
-cat(totalreads) # 1860.26 million reads
-```
-**Total mapped sequencing depth (GB):**
-
-```{r mappedGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-mappedGB <- round(sequencing_depth_sum / 1000000000 * 143,2)
-cat(mappedGB) # 266.02 GB total sequencing depth
-```
-**Average mapped sequencing depth (million reads):** 
-This is the average number of reads (and nucleotide bases) mapped to each sample. Note that the amount of bases is only an approximation estimated by multiplying the exact number of mapped reads by 250 bp.
-```{r meanreads, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-meanreads <- round(sequencing_depth_mean / 1000000,2)
-cat(meanreads) # 32.07 million reads avg seq depth
-```
-**Average mapped sequencing depth (GB):** 
-```{r meanGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-meanGB <- round(sequencing_depth_mean / 1000000000 * 143,2)
-cat(meanGB) # 4.59 GB avg seq depth
-```
-
-## 2.2 MAG catalogue
-
-### 2.2.1 Phylogenetic tree
-The phylogenetic tree is constructed by placing the MAG sequences within the reference archaeal and bacterial trees using GTDBTK, followed by merging both trees.
-
-```{r list_phyla, echo=FALSE, warning=FALSE}
-phyla <- ehi_phylum_colors1 %>%
-  dplyr::right_join(taxonomyclean, by=join_by(phylum == phylum)) %>% 
-	arrange(match(genome, tree$tip.label)) %>% 
-  dplyr::select(phylum, colors) %>%
-	unique()
-```
-```{r circular_tree_prep, echo=FALSE, warning=FALSE, comments="", message=FALSE, results="hide"}
-heatmap <- ehi_phylum_colors1 %>%
-  dplyr::right_join(taxonomyclean, by=join_by(phylum == phylum)) %>%
-	arrange(match(genome, tree$tip.label)) %>%
-  select(genome,phylum) %>%
-	mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
-	column_to_rownames(var = "genome")
-
-colors_alphabetic <- ehi_phylum_colors1 %>%
-  dplyr::right_join(taxonomyclean, by=join_by(phylum == phylum)) %>%
-	arrange(match(genome, tree$tip.label)) %>%
-  select(phylum, colors) %>%
-	unique() %>%
-	arrange(phylum) %>%
-	select(colors) %>%
-	pull()
-
-circular_tree <- force.ultrametric(tree,method="extend") %>%
-	ggtree(., layout = 'circular', size = 0.3)
-
-circular_tree <- gheatmap(circular_tree, heatmap, offset=0.65, width=0.1, colnames=FALSE) +
-		scale_fill_manual(values=colors_alphabetic) +
-		geom_tiplab2(size=1, hjust=-0.1) +
-		theme(plot.margin = margin(0, 0, 0, 0), panel.margin = margin(0, 0, 0, 0))
-
-print(circular_tree)
-```
-### 2.2.2 MAG details
-Overview of the taxonomy and genome characteristics of the MAGs.\
-**Completeness:** completeness of the MAG according to CheckM assessment.\
-**Contamination:** contamination or redundancy of the MAG according to CheckM assessment.\
-**Size:** size of the MAG in megabases (MB, one million nucleotide bases).
-
-```{r complet_conta, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-comp_cont <- mutate(
-  select(taxonomyclean, genome, phylum, completeness, contamination, mag_size),
-  mag_size = round(mag_size / 1000000, 2),
-  comp = completeness,
-  cont = contamination,
-  size = mag_size
-) %>%
-  select(-completeness, -contamination, -mag_size) %>%
-  remove_rownames() %>%
-  arrange(match(genome, rev(tree$tip.label)))
-
-```
-```{r complet_conta_table, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-comp_cont_table <- comp_cont %>% 
-  select(-genome) %>% 
-  group_by(phylum) %>% 
-  summarise_at(.vars = names(.)[c(2,3,4)],.funs = c(mean="mean", sd="sd"))
-comp_cont_table <- comp_cont_table[,c(1,2,5,3,6,4,7)]
-knitr::kable(comp_cont_table, format = "html", full_width = F,col.names = c("Phylum", "Completeness Mean", "Completeness SD", "Contamination Mean", "Contamination SD", "Size Mean", "Size SD"), digits = 2) %>%
-  kable_styling(latex_options="scale_down")
-```
-
-```{r plot_mag_stats, echo=FALSE, warning=FALSE}
-ggscatter(comp_cont, x = "comp", y = "cont", color="phylum", 
-          add = "reg.line", conf.int = TRUE,  add.params = list(color = "black", fill = "lightgray"),
-          cor.coef = TRUE, cor.method = "kendall", size = "size",
-          cor.coeff.args = list(method = "kendall", label.x = 80, label.sep = "\n"), 
-          xlab = "Completeness", ylab = "Contamination", legend="right") +
-				scale_color_manual(values=colors_alphabetic) +
-  guides(col=guide_legend("Phylum"),
-         size=guide_legend("MAG size"))
-```
-
-## 2.3 Sequencing depth assessment
-When performing genome-resolved metagenomic analyses on host-associated microbial communities, the data usually contains a mixture of origins.
-
-One fraction is low-quality data that is discarded in the bioinformatic preprocessing due to lack of informativeness. These data include low-quality bases, adaptors, low-complexity reads and alike, which do not contribute to the study. Another fraction belongs to the host genome against which the data are mapped. The host fraction can be very variable depending on the species and the sample type, and while it is not informative for metagenomic analyses, it can be used for genomic analyses. The rest is what we call the metagenomic fraction. Part of the metagenomic fraction is built into draft bacterial genomes or MAGs, against which metagenomic reads are mapped later on to quantify relative representation of genomes. The fraction that is not built into MAGs is what is also unmapped against the MAG catalogue. This last fraction includes DNA dietary items, viruses and other organisms, but can values_to include prokaryotic DNA of bacteria and archaea that were unable to be reconstructed.
-
-In order to have representative results, the number of reads mapped to the MAG catalogue should be similar across samples. However, multiple reasons can create large imbalances, including uneven sequencing depth, different microbiome complexity across samples, different amount of host or non-microbial reads in the dataset, etc. The following plot shows the distribution of reads across samples.
-
-```{r data_fraction, warning=FALSE, echo=FALSE, fig.height=5}
-# Calculate sequence fractions
-sequence_fractions <- counts_table %>%
-  rownames_to_column("Genome") %>%
-  pivot_longer(-Genome, names_to = "sample", values_to = "value") %>%
-  group_by(sample) %>%
-  summarise(mags = sum(value)) %>%
-	dplyr::left_join(metadata, by = join_by(sample == sample))  %>%
-	select(sample,mags,metagenomic_bases,host_bases,bases_lost_fastp_percent) %>%
-	mutate(mags_bases = mags*146) %>%
-	mutate(lowqual_bases = ((metagenomic_bases+host_bases)/(1-bases_lost_fastp_percent))-(metagenomic_bases+host_bases)) %>%
-	mutate(unmapped_bases = metagenomic_bases - mags_bases) %>%
-	select(sample,mags_bases,unmapped_bases,host_bases,lowqual_bases)
-
-mags_bases_mean <- sequence_fractions %>%
-	mutate(mags_bases = mags_bases / 1000000000) %>%
-	select(mags_bases) %>%
-	mean()
-
-sequence_fractions_pivot <- sequence_fractions %>%
-	pivot_longer(!sample, names_to = "fraction", values_to = "value") %>%
-	mutate(value = value / 1000000000) %>%
-	mutate(fraction = factor(fraction, levels = c("lowqual_bases","host_bases","unmapped_bases","mags_bases")))
-
-sequence_fractions_meta <- merge(sequence_fractions_pivot, metadata, by="sample")
-```
-```{r data_fraction_barplot, echo=FALSE, warning=FALSE}
-ggplot(sequence_fractions_meta, aes(x = sample, y = value, fill=fraction)) +
-  geom_bar(position="stack", stat = "identity") +
-  scale_fill_manual(name=NULL,
-                    breaks=c("lowqual_bases","host_bases","unmapped_bases","mags_bases"),
-                    labels=c("Low quality","Host","Unmapped", "MAGs"),
-                    values=c("#CCCCCC","#178a94","#ee8080","#d03161")) +
-#  geom_hline(yintercept = mags_bases_mean, linetype = "dashed", color = "black") +
-  facet_grid(~region, scale="free", space="free") + # grouped the samples by region
-  labs(x = "Samples", y = "Amount of data (GB)") +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 6),
-        strip.text.x = element_text(size = 7, face = "bold"),
-        strip.background = element_rect(colour=NA, fill=NA),
-        panel.background = element_rect(fill = NA, color = "black"),
-        panel.border = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black"),
-        legend.position="bottom",
-        legend.title=element_blank())
-
-```
-
-## 2.4 Minimum genome-coverage filtering
-Mapping of sequencing reads against the reference genome catalogue is not perfect, and in consequence, all MAGs tend to get a few reads assigned. Implementing a minimum genome coverage filter aims at minimising artificial inflation of diversity due to this artifact of genome-resolved metagenomic analysis. However, if the sequencing depth is low and uneven across samples, this filtering can also introduce more distorsion.
-
-```{r coverage, echo=FALSE, warning=FALSE}
-# Coverage filtering
-min_coverage=0.3
-count_table_cov <- coverage_table %>%
-  mutate(across(everything(), ~ ifelse(. > min_coverage, 1, 0))) %>%
-  map2_df(., counts_table, ~ .x * .y) %>%
-  as.data.frame()
-rownames(count_table_cov) <- rownames(coverage_table)
-```
-
-## 2.5 Genome-size normalisation
-Bacterial genomes can vary between 1 and 8 MB, which make relative representation of each genome dependent on its size. To account for genome size biases, read-counts can be normalised by applying a normalisation factor that modifies the read numbers according to the size of each genome compared to the average genome size in the dataset.
-
-```{r genome_norm, echo=FALSE, warning=FALSE}
-#Transform by mean MAG-size
-mags_table1 <- column_to_rownames(mags_table, "genome")
-genome_read_sizes <- mags_table1[rownames(count_table_cov),] %>%
-    dplyr::select(mag_size) %>%
-    mutate(mag_size = mag_size / 143) %>% #143 nt is the average read-length after quality filtering in EHI data
-    pull()
-count_table_cov_size <- sweep(count_table_cov, 1, genome_read_sizes, "/") #USE THIS COUNT TABLE FOR ALL DA ANALYSIS
-
-count_table_cov_size_rel <- count_table_cov_size %>%
-  rownames_to_column("Genome") %>%
-  mutate_at(vars(-Genome),~./sum(.)) #TSS normalisation
-```
-## 2.6 Count table
-Once low-coverage genome counts have been filtered out, and the read counts have been normalised into genome counts, we can visualise the relative MAG abundances per sample. Note that the count scale is log-transformed.
-```{r cov_size_heatmap, echo=FALSE, warning=FALSE, comments="", message=FALSE, results="hide"}
-vertical_tree <- force.ultrametric(tree,method="extend") %>%
-		ggtree(., size = 0.3)
-
-#Add phylum colors
-vertical_tree <- gheatmap(vertical_tree, heatmap, offset=0, width=0.1, colnames=FALSE) +
-	scale_fill_manual(values=colors_alphabetic)
-
-#Reset fill scale
-vertical_tree <- vertical_tree + new_scale_fill()
-
-#Add counts
-vertical_tree <- gheatmap(vertical_tree, log10(count_table_cov_size), offset=0.04, width=3.5, colnames=TRUE, colnames_angle=90, font.size=2, colnames_position="top", colnames_offset_y = 9) +
-	vexpand(.08) +
-	coord_cartesian(clip = "off") +
-	scale_fill_gradient(low = "white", high = "steelblue", na.value="white")
-```
-```{r plot_tree, echo=FALSE, warning=FALSE, comments="", message=FALSE}
-#Plot tree
-vertical_tree +
-	theme(legend.position='bottom',legend.key.size = unit(0.3, 'cm')) + labs(fill='Counts')
-```
-
-# 3 Taxonomic composition
+# 5 Taxonomic composition
 Note that TSS normalisation simply divides each count value for the total count for the sample, thus transforming the data to 0-1 scale.
 
 ```{r taxo_comp, echo=FALSE, warning=FALSE}
-count_table_cov_size_pivot <- count_table_cov_size %>%
-  rownames_to_column("Genome") %>%
-  mutate_at(vars(-Genome),~./sum(.)) %>% # TSS nornalisation
-  pivot_longer(-Genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
-  dplyr::left_join(., mags_table, by = join_by(Genome == genome)) %>% #append taxonomy
+count_table_cov_size_pivot <- genome_counts%>%
+  mutate_at(vars(-genome),~./sum(.)) %>% # TSS nornalisation
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
+  dplyr::left_join(., genome_metadata, by = join_by(genome == genome)) %>% #append taxonomy
   mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
 
 count_table_cov_size_pivot <- count_table_cov_size_pivot %>%
@@ -1130,7 +742,7 @@ structural_zeros <- count_table_cov_size %>%
     )) %>%
    mutate(average = ifelse(present == "Ittoq", average_Ittoq, average_Daneborg)) %>%
    dplyr::select(genome, present, average) %>%
-   dplyr::left_join(mags_table, by=join_by(genome==genome)) %>%
+   dplyr::left_join(genome_coverage, by=join_by(genome==genome)) %>%
    arrange(present,-average)
 ```
 ```{r plot structural zeros}
@@ -2493,14 +2105,14 @@ genome_counts <- genome_counts %>%
 # Metadata
 metadata=all_metadata
 # MAG stats (mag_length)
-counts_raw=mags_table
+counts_raw=genome_coverage
 
 stats <- counts_raw[,c(1,11)] %>%
   as.data.frame()%>%
   column_to_rownames(., "genome")
 
 # MAG taxonomy
-mags_table <- taxonomyclean
+genome_coverage <- taxonomyclean
 ```
 ## Standardization and correction
 ```{r}
