@@ -19,45 +19,18 @@ library(tidyverse)
 library(ape)
 library(devtools)
 library(ggplot2)
-library(hillR)
 library(spaa)
 library(vegan)
-library(hilldiv2) # note use of hilldiv2 rather than hilldiv
-library(Rhdf5lib)
-library(phyloseq)
 library(phytools)
-library(microbiome) 
-library(matrixStats)
-library(microbiomeutilities) 
-library(lme4)
-library(MuMIn)
-library(nlme)
 library(knitr) 
 library(kableExtra)
-library(pairwiseAdonis)
-library(sjPlot)
-library(distillR) 
-library(RColorBrewer)
-library(reshape2)
 library(ggpubr)
-library(ggdendro)
-library(grid)
-library(gplots)
-library(dendextend)
-library(stringr) 
 library(Rtsne) 
-library(glue) 
 library(ggtree)
 library(ggrepel)
 library(ggpubr)
-library(ggnewscale)
 library(ggtreeExtra)
-library(DESeq2)
-library(ANCOMBC)
-library(lefser)
 library(dplyr)
-library(mia)
-library(pheatmap)
 library(gridExtra)
 ```
 
@@ -74,16 +47,12 @@ discarded_bases <- sum(round(((metadata$metagenomic_bases+metadata$host_bases)/(
 total_bases <- discarded_bases + host_bases + metagenomic_bases
 singlem_bases <- sum(metadata$metagenomic_bases * metadata$singlem_fraction) 
 nmags <- nrow(read_counts) # establish number of MAGs for analysis
-new_species <- genome_coverage %>%
-	filter(species == "s__") %>%
-	nrow()
 
 sequencing_depth <- colSums(read_counts)
 sequencing_depth_sum <- sum(sequencing_depth)
 sequencing_depth_mean <- mean(sequencing_depth)
 sequencing_depth_sd <- sd(sequencing_depth)
 ```
-
 
 # 2 Data pre-processing
 
@@ -202,16 +171,23 @@ cat(meanGB) # 4.59 GB avg seq depth
 ## 2.2 General MAG statistics
 
 **Number of MAGs without species-level annotation**
-```{r}
-genome_coverage %>%
+```{r nonspe, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+nonspecies <- genome_metadata %>%
     filter(species == "s__") %>%
     nrow()
+cat(nonspecies)
 ```
 
-**Number of phylums**
+**Percentage of MAGs without species-level annotation**
+```{r sp_percet, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+perct <- nonspecies*100/nmags
+cat(perct)
+```
 
-```{r}
-genome_coverage %>%
+**Number of phyla**
+
+```{r phyla, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+genome_metadata %>%
     select(phylum) %>%
   unique() %>%
   pull() %>%
@@ -219,7 +195,7 @@ genome_coverage %>%
 ```
 
 
-## 3 MAG catalogue
+# 3 MAG catalogue
 ```{r colors, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 #Get phylum colors from the EHI standard
 phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv")%>%
@@ -282,12 +258,12 @@ circular_tree
 ```
 
 
-### 3.2 MAG details
+## 3.2 MAG quality
 Overview of the taxonomy and genome characteristics of the MAGs.\
 **Completeness:** completeness of the MAG according to CheckM assessment.\
 **Contamination:** contamination or redundancy of the MAG according to CheckM assessment.\
 **Size:** size of the MAG in megabases (MB, one million nucleotide bases).
-# Genome quality
+
 
 ```{r biplot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 #Generate quality biplot
@@ -348,7 +324,60 @@ grid.arrange(grobs = list(genome_completeness,genome_biplot,genome_contamination
                               c(2,2,2,2,2,2,2,2,2,2,2,3)))
 ```
 
-# Sequencing Assessment
+## 3.3 Functional attributes of MAGs
+```{r kegg_tree, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+kegg_tree <- force.ultrametric(tree,method="extend") %>%
+                ggtree(., size = 0.3)
+```
+```{r kegg_tree_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+colors_alphabetic <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+  arrange(match(genome, tree$tip.label)) %>%
+  select(phylum, colors) %>%
+    unique() %>%
+    arrange(phylum) %>%
+    select(colors) %>%
+    pull()
+
+#Add phylum colors next to the tree tips
+    kegg_tree <- gheatmap(kegg_tree, heatmap, offset=0, width=0.1, colnames=FALSE) +
+            scale_fill_manual(values=colors_alphabetic)
+
+#Reset fill scale to use a different colour profile in the heatmap
+kegg_tree <- kegg_tree + new_scale_fill()
+
+#Add KEGG heatmap
+kegg_tree <- gheatmap(kegg_tree, genome_gifts, offset=0.5, width=3.5, colnames=FALSE) +
+            vexpand(.08) +
+            coord_cartesian(clip = "off") +
+            scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white")
+
+#Plot combined tree + heatmap
+kegg_tree +
+            theme(legend.position='none')
+```
+
+## 3.4 Functional ordination of MAGs
+```{r tse, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+# Generate the tSNE ordination
+tSNE_func <- Rtsne(X=kegg_table, dims = 2, check_duplicates = FALSE)
+
+# Plot the ordination
+tSNE_func$Y %>%
+  as.data.frame() %>%
+  mutate(genome=rownames(kegg_table)) %>%
+  inner_join(genome_metadata, by="genome") %>%
+  rename(tSNE1="V1", tSNE2="V2") %>%
+  select(genome,phylum,tSNE1,tSNE2, completeness) %>%
+  ggplot(aes(x = tSNE1, y = tSNE2, color = phylum, size=completeness))+
+  geom_point(shape=16, alpha=0.7) +
+  scale_color_manual(values=colors_alphabetic) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+# 4 Sequencing Assessment
+
 ## 4.1 DNA fractions
 
 ```{r}
@@ -383,7 +412,7 @@ mags_bases_mean <- sequence_fractions %>%
 ```
 
 ## 4.2 Estimated vs. mapped prokaryotic fraction
-```{r}
+```{r est_pro, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 singlem_table <- sequence_fractions %>%
     mutate(mags_proportion = round((mags_bases / (mags_bases + unmapped_bases))*100,2)) %>%
     left_join(sample_metadata, by = join_by(sample == sample))  %>%
@@ -395,7 +424,7 @@ singlem_table <- sequence_fractions %>%
     mutate(singlem_proportion = ifelse(singlem_proportion > 100, 100, singlem_proportion)) #simplify
 ```
 
-```{r}
+```{r singlem, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 singlem_table %>%
     pivot_longer(!sample, names_to = "proportion", values_to = "value") %>%
     mutate(proportion = factor(proportion, levels = c("mags_proportion","singlem_proportion"))) %>%
@@ -408,9 +437,9 @@ singlem_table %>%
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size=6),legend.position = "right")
 ```
 
-## 4.3 Additional sequencing needed
+### 4.3 Additional sequencing needed
 
-```{r}
+```{r seq_needs, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 # Define the aimed GBs for host and mapped metagenomic data
 mags_bases_aim=2
 host_bases_aim=5
@@ -432,7 +461,7 @@ sequence_fractions_required <- sequence_fractions %>%
     select(sample,mags_bases,unmapped_bases,host_bases,lowqual_bases,meta_required,host_required)
 ```
 
-```{r}
+```{r seq_needs_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 sequence_fractions_required %>%
     select(sample,meta_required,host_required) %>%
     mutate(meta_required = ifelse(meta_required > 20, 21, meta_required)) %>%
@@ -448,13 +477,5 @@ sequence_fractions_required %>%
         theme_classic() +
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size=6),legend.position = "bottom")
 ```
-
-
-
-
-
-
-
-
 
 

@@ -1691,6 +1691,7 @@ cf2<- ggplot(GIFTs_functions_community_df, aes(x = region, y = S02, group = regi
 library(gridExtra)
 grid.arrange(arrangeGrob(cf1, cf2, ncol = 2))
 ```
+
 #Community Element
 ```{r}
 # community element level

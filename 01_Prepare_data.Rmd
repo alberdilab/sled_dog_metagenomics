@@ -16,13 +16,14 @@ library(distillR)
 ```
 
 ```{r}
+#Read counts
 read_counts <- read_tsv("resources/DMB0032_counts.tsv")%>%
   dplyr::rename(genome = 1)
 genomes <- read_counts$genome
 ```
 
-
 ```{r}
+#Genome metadata
 genome_metadata <- read_tsv("resources/DMB0032_mag_info.tsv")%>%
   arrange(match(genome, genomes))
 
@@ -31,6 +32,7 @@ genome_metadata <- read_tsv("resources/DMB0032_mag_info.tsv")%>%
 ```
 
 ```{r}
+#Genome table
 genome_coverage <- read_tsv("resources/DMB0032_coverage.tsv")%>%
   dplyr::rename(genome = 1)%>%
   arrange(match(genome, genomes))
@@ -55,14 +57,14 @@ genome_counts_rel <- genome_counts %>%
 ```
 
 ```{r}
+#Sample metadata
 sample_metadata <- read_tsv("resources/DMB0032_metadata.tsv")%>%
 	dplyr::rename(sample=EHI_plaintext) 
 ```
 
-
 ```{r}
+#Bacteria tree
 tree <- read.tree("resources/DMB0032.tree")
-#tree$tip.label <- str_replace_all(tree$tip.label, "'", "") # remove .fa extension
 tree <- keep.tip(tree, tip = genomes) # keep only MAG tips
 ```
 
@@ -73,7 +75,7 @@ kegg_table <- read_tsv("resources/DMB0032_merged_kegg.tsv")
 
 ```{r func, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 #Genome functions
-genome_annotations <- read_tsv("resources/DMB0032_annotations.tsv")
+genome_annotations <- read_delim("resources/DMB0032_annotations.csv")%>% column_to_rownames(., "...1")
 ```
 
 ```{r}
@@ -82,6 +84,6 @@ genome_gifts <- distill(genome_annotations,GIFT_db,genomecol=2,annotcol=c(9,10,1
 ```
 
 ```{r}
-save(read_counts, read_counts_coverage, genome_counts, tree, genome_metadata, kegg_table, sample_metadata, file = "resources/data/data.Rdata") #genome_gifts,genome_annotations
+save(read_counts, read_counts_coverage, genome_counts, tree, genome_metadata, kegg_table, sample_metadata, genome_gifts, genome_annotations, file = "resources/data/data.Rdata")
 ```
 

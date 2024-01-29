@@ -1,0 +1,694 @@
+---
+title: "Composition & Functional Overview"
+output: html_document
+date: "2024-01-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r libraries, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+library(hilldiv2) 
+library(janitor)
+library(ggh4x)
+library(gridExtra)
+library(ggpubr)
+library(tidyverse)
+library(ggplot2)
+library(vegan)
+library(dplyr)
+library(tidyr)
+library(distillR)
+
+```
+
+
+# Taxonomic composition
+
+```{r loaddata, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+load("resources/data/data.Rdata")
+```
+
+```{r color, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+#Get phylum colors from the EHI standard
+
+genome_metadata <- genome_metadata %>%
+  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", ""))
+
+phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", ""))%>%
+  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+    arrange(match(genome, tree$tip.label)) %>%
+    dplyr::select(phylum, colors) %>%
+    unique() %>%
+    arrange(phylum) %>%
+    dplyr::select(colors) %>%
+    pull()
+```
+
+```{r barplot1, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+genome_counts %>%
+  mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS nornalisation
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
+  left_join(., genome_metadata, by = join_by(genome == genome)) %>% #append genome metadata
+  left_join(., sample_metadata, by = join_by(sample == sample)) %>% #append sample metadata
+  ggplot(., aes(x=sample,y=count, fill=phylum, group=phylum)) + #grouping enables keeping the same sorting of taxonomic units
+    geom_bar(stat="identity", colour="white", linewidth=0.1) + #plot stacked bars with white borders
+    scale_fill_manual(values=phylum_colors) +
+    labs(y = "Relative abundance") +
+  facet_grid(.~region,  scales="free_x")+
+#    facet_nested(.~Individual+Sample_type,  scales="free_x") +
+    guides(fill = guide_legend(ncol = 1)) +
+    theme(axis.text.x=element_blank(),
+          axis.title.x = element_blank(),
+          axis.ticks.x=element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black")) +
+   labs(fill="Phylum")
+```
+
+# Alpha diversity
+## Alpha diversity means by sample type
+```{r alpha_div, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+#Calculate Hill numbers
+richness <- genome_counts %>% 
+            column_to_rownames(var="genome") %>% 
+            dplyr::select(where(~!all(. == 0))) %>% 
+            hilldiv(.,q=0) %>% 
+            t() %>% 
+            as.data.frame() %>%
+            dplyr::rename(richness=1) %>%
+            rownames_to_column(var="sample")
+
+neutral <- genome_counts %>% 
+            column_to_rownames(var="genome") %>% 
+            dplyr::select(where(~!all(. == 0))) %>% 
+            hilldiv(.,q=1) %>% 
+            t() %>% 
+            as.data.frame() %>%
+            dplyr::rename(neutral=1) %>%
+            rownames_to_column(var="sample")
+
+phylogenetic <- genome_counts %>% 
+            column_to_rownames(var="genome") %>% 
+            dplyr::select(where(~!all(. == 0))) %>% 
+            hilldiv(.,q=1,tree=tree) %>% 
+            t() %>% 
+            as.data.frame() %>%
+            dplyr::rename(phylogenetic=1) %>%
+            rownames_to_column(var="sample")
+
+# Aggregate basal GIFT into elements
+dist <- genome_gifts %>%
+    to.elements(., GIFT_db) %>%
+    traits2dist(., method="gower")
+
+genome_counts_filt <- genome_counts[genome_counts$genome %in% rownames(genome_gifts),] 
+rownames(genome_counts_filt) <- NULL
+functional <- genome_counts_filt %>% 
+            column_to_rownames(var="genome") %>% 
+            dplyr::select(where(~!all(. == 0))) %>% 
+            hilldiv(.,q=1,dist=dist) %>% 
+            t() %>% 
+            as.data.frame() %>%
+            dplyr::rename(functional=1) %>%
+            rownames_to_column(var="sample") %>%
+            mutate(functional = if_else(is.nan(functional), 1, functional))
+
+# Merge all metrics
+alpha_div <- richness %>%
+      full_join(neutral,by=join_by(sample==sample)) %>%
+      full_join(phylogenetic,by=join_by(sample==sample)) %>%
+      full_join(functional,by=join_by(sample==sample)) %>%
+      left_join(., sample_metadata, by = join_by(sample == sample))
+
+
+richness_mean <- alpha_div %>%
+  group_by(region) %>%
+  dplyr::summarise_at(.vars = names(.)[2], .funs = c("Richness mean" = "mean", "Richness sd" = "sd")) %>%
+  dplyr::rename("Region"="region")
+
+neutral_mean <- alpha_div %>%
+  group_by(region) %>%
+  dplyr::summarise_at(.vars = names(.)[3], .funs = c("Neutral mean" = "mean", "Neutral sd" = "sd"))
+
+phylogenetic_mean <- alpha_div %>%
+  group_by(region) %>%
+  dplyr::summarise_at(.vars = names(.)[4], .funs = c("Phylogenetic mean" = "mean", "Phylogenetic sd" = "sd"))
+
+functional_mean <- alpha_div %>%
+  group_by(region) %>%
+  dplyr::summarise_at(.vars = names(.)[5], .funs = c("Functional mean" = "mean", "Functional sd" = "sd"))
+
+cbind(richness_mean, neutral_mean[, 2:3], phylogenetic_mean[, 2:3], functional_mean[, 2:3]) %>% #
+  as.data.frame()%>%
+  t() %>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  knitr::kable(.,digits = c(3,3))
+```
+
+## Plot diversities
+```{r alpha_div_plot1, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+alpha_div_pivot <- richness %>%
+  full_join(neutral,by=join_by(sample==sample)) %>%
+  full_join(phylogenetic,by=join_by(sample==sample)) %>%
+  full_join(functional,by=join_by(sample==sample)) %>%
+  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+  left_join(., sample_metadata, by = join_by(sample == sample))
+
+alpha_div_pivot %>%
+  ggplot(aes(x=value, y=sample)) +
+  geom_bar(stat='identity', fill="#6c9ebc") +
+  facet_nested(region ~ data,  scales="free")+
+  coord_cartesian(xlim = c(1, NA)) +
+  theme_classic() +
+  theme(strip.background = element_blank(),
+    panel.grid.minor.x = element_line( size=.1, color="grey" ),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+```{r alpha_div_rich, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+alpha_colors <- c("#e5bd5b", "#6b7398", "#76b183", "#d57d2c", "#2a2d26", "#f9d4cc", "#3c634e", "#ea68c3")
+group_n <- alpha_div %>%
+  select(region) %>%
+  pull() %>%
+  unique() %>%
+  length()
+plot1 <- alpha_div %>%
+  ggplot(aes(x = region, y = richness, group = region, color = region, fill = region)) +
+  geom_jitter(width = 0.05, size = 1.5, show.legend = FALSE) +
+  geom_violin(alpha = 0.2, width = 0.3, show.legend = FALSE) +
+  scale_color_manual(values = alpha_colors[c(1:group_n)]) +
+  scale_fill_manual(values = paste0(alpha_colors[c(1:group_n)], "50")) +
+  stat_compare_means(show.legend = FALSE) +
+  theme(axis.text.x = element_text(vjust = 0.5),
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0)),
+    panel.background = element_blank(),
+    # panel.border = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black")) +
+  guides(colour = guide_legend(override.aes = list(size = 6))) +
+  labs(x = "Region", y = "Richness")
+```
+
+```{r alpha_div_neutral, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+plot2 <- alpha_div%>%
+  ggplot(aes(x = region, y = neutral, group = region, color = region, fill = region)) +
+  geom_jitter(width = 0.05, size = 1.5, show.legend = FALSE) +
+  geom_violin(alpha = 0.2, width = 0.3, show.legend = FALSE) +
+  scale_color_manual(values = alpha_colors[c(1:group_n)]) +
+  scale_fill_manual(values = paste0(alpha_colors[c(1:group_n)], "50")) +
+  stat_compare_means(show.legend = FALSE) +
+  theme(axis.text.x = element_text(vjust = 0.5),
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0)),
+    panel.background = element_blank(),
+    # panel.border = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black")) +
+  guides(colour = guide_legend(override.aes = list(size = 6)))+
+  labs(x = "Region", y = "Neutral")
+```
+
+```{r alpha_div_phylo, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+plot3 <- alpha_div%>%
+  ggplot(aes(x = region, y = phylogenetic, group = region, color = region, fill = region)) +
+  geom_jitter(width = 0.05, size = 1.5, show.legend = FALSE) +
+  geom_violin(alpha = 0.2, width = 0.3, show.legend = FALSE) +
+  scale_color_manual(values = alpha_colors[c(1:group_n)]) +
+  scale_fill_manual(values = paste0(alpha_colors[c(1:group_n)], "50")) +
+  stat_compare_means(show.legend = FALSE) +
+  theme(axis.text.x = element_text(vjust = 0.5),
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0)),
+    panel.background = element_blank(),
+    # panel.border = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black")) +
+  guides(colour = guide_legend(override.aes = list(size = 6)))+
+  labs(x = "Region", y = "Phylogenetic")
+```
+```{r alpha_div_func, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+plot4 <- alpha_div%>%
+  ggplot(aes(x = region, y = functional, group = region, color = region, fill = region)) +
+  geom_jitter(width = 0.05, size = 1.5, show.legend = FALSE) +
+  geom_violin(alpha = 0.2, width = 0.3, show.legend = FALSE) +
+  scale_color_manual(values = alpha_colors[c(1:group_n)]) +
+  scale_fill_manual(values = paste0(alpha_colors[c(1:group_n)], "50")) +
+  stat_compare_means(show.legend = FALSE) +
+  theme(axis.text.x = element_text(vjust = 0.5),
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0)),
+    panel.background = element_blank(),
+    # panel.border = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black")) +
+  guides(colour = guide_legend(override.aes = list(size = 6)))+
+  labs(x = "Region", y = "Functional")
+```
+
+```{r div_plot_together, comment="", echo=FALSE, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+grid.arrange(arrangeGrob(plot1,plot2,plot3,plot4, ncol = 2)) 
+```
+
+# Beta diversity
+```{r beta_div, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide', eval=FALSE}
+beta_q0 <- genome_counts%>%
+  column_to_rownames(., "genome")%>%
+  hillpair(., q = 0)
+
+beta_q1n <- genome_counts%>%
+  column_to_rownames(., "genome")%>%
+  hillpair(., q = 1)
+
+beta_q1p <- genome_counts%>%
+  column_to_rownames(., "genome")%>%
+  hillpair(., q = 1, tree = tree)
+
+beta_div_func <- genome_counts_filt%>%
+  column_to_rownames(., "genome")%>%
+  hillpair(.,q=1,dist=dist)
+
+save(beta_q0,beta_q1n, beta_q1p, beta_div_func, file = "resources/data/beta_div.Rdata")
+```
+
+```{r beta_div_open, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+load("resources/data/beta_div.Rdata")
+```
+
+```{r betan, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+beta_metric <- beta_q1n$S
+
+beta_q1n_nmds <- beta_metric %>%
+  vegan::metaMDS(., trymax = 500, k = 2, verbosity = FALSE) %>%
+  vegan::scores() %>%
+  as_tibble(., rownames = "sample") %>%
+  dplyr::left_join(sample_metadata, by = join_by(sample == sample))
+
+group_n <- length(unique(beta_q1n_nmds$region))
+beta_colors <- c("#e5bd5b", "#6b7398", "#76b183", "#d57d2c", "#2a2d26", "#f9d4cc", "#3c634e", "#ea68c3")
+```
+
+## Neutral beta diversity
+```{r beta_div_neutral, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+
+# pdf(paste(workingdir,"/x.pdf",sep=""),width=14, height=9)
+q1n_nmds <- beta_q1n_nmds %>%
+  group_by(region) %>%
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup()
+ggplot(q1n_nmds, aes(x = NMDS1, y = NMDS2, color = region)) +
+  scale_color_manual(values = beta_colors[c(1:group_n)]) +
+  scale_shape_manual(values = 1:10) +
+  geom_point(size = 4) +
+  #   stat_ellipse(aes(color = beta_q1n_nmds$Groups))+
+  geom_segment(aes(x = x_cen, y = y_cen, xend = NMDS1, yend = NMDS2), alpha = 0.9) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_text(size = 20, face = "bold"),
+    axis.text = element_text(face = "bold", size = 18),
+    panel.background = element_blank(),
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+    legend.text = element_text(size = 16),
+    legend.title = element_text(size = 18),
+    legend.position = "right", legend.box = "vertical"
+  )
+#+ geom_text(aes(label = Sample), size=8)
+# dev.off()
+```
+
+***Homogeneity of variance***
+
+```{r permu1, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+ps.disper.neutral <- betadisper(beta_metric, sample_metadata$region) 
+permutest(ps.disper.neutral, pairwise = TRUE) 
+```
+
+***Permanova***
+```{r adonisbeta2, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+#### Adonis
+metarow <- column_to_rownames(sample_metadata, "sample")
+
+adonis2(beta_metric ~ region+sex, data = metarow[labels(beta_metric), ], permutations = 999) %>%
+  as.matrix() %>%
+  knitr::kable(., digits = c(0,3,3,3,3))
+```
+
+```{r betap, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+beta_p_metric <- beta_q1p$S
+
+beta_q1p_nmds <- beta_p_metric %>%
+  vegan::metaMDS(., trymax = 500, k = 2, verbosity = FALSE) %>%
+  vegan::scores() %>%
+  as_tibble(., rownames = "sample") %>%
+  dplyr::left_join(sample_metadata, by = join_by(sample == sample))
+
+group_n <- length(unique(beta_q1p_nmds$region))
+beta_colors <- c("#e5bd5b", "#6b7398", "#76b183", "#d57d2c", "#2a2d26", "#f9d4cc", "#3c634e", "#ea68c3")
+```
+
+## Phylogenetic beta diversity
+```{r  beta_div_phylo, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+# pdf(paste(workingdir,"/betaB692_caecum.pdf",sep=""),width=14, height=9)
+q1p_nmds <- beta_q1p_nmds %>%
+  group_by(region) %>%
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup()
+ggplot(q1p_nmds, aes(x = NMDS1, y = NMDS2, color = region)) +
+  scale_color_manual(values = beta_colors[c(1:group_n)]) +
+  scale_shape_manual(values = 1:10) +
+  geom_point(size = 4)  +
+  geom_segment(aes(x = x_cen, y = y_cen, xend = NMDS1, yend = NMDS2), alpha = 0.9) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_text(size = 20, face = "bold"),
+    axis.text = element_text(face = "bold", size = 18),
+    panel.background = element_blank(),
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+    legend.text = element_text(size = 16),
+    legend.title = element_text(size = 18),
+    legend.position = "right", legend.box = "vertical"
+  )
+#+ geom_text(aes(label = Sample), size=8)
+# dev.off()
+```
+
+***Homogeneity of variance***
+
+```{r permu2, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+ps.disper.phylo <- betadisper(beta_p_metric, sample_metadata$region) 
+permutest(ps.disper.phylo, pairwise = TRUE) 
+```
+
+***Permanova***
+```{r adonisbeta3, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+#### Adonis
+metarow <- column_to_rownames(sample_metadata, "sample")
+
+adonis2(beta_p_metric ~ region+sex, data = metarow[labels(beta_p_metric), ], permutations = 999) %>%
+  as.matrix() %>%
+  knitr::kable(., digits = c(0,3,3,3,3))
+```
+
+```{r betaf, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+beta_f_metric <- beta_div_func$S
+
+beta_f_nmds <- beta_f_metric %>%
+  vegan::metaMDS(., trymax = 500, k = 2, verbosity = FALSE) %>%
+  vegan::scores() %>%
+  as_tibble(., rownames = "sample") %>%
+  dplyr::left_join(sample_metadata, by = join_by(sample == sample))
+
+group_n <- length(unique(beta_f_nmds$region))
+beta_colors <- c("#e5bd5b", "#6b7398", "#76b183", "#d57d2c", "#2a2d26", "#f9d4cc", "#3c634e", "#ea68c3")
+```
+
+## Functional beta diversity
+```{r  beta_div_func, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+
+# pdf(paste(workingdir,"/x.pdf",sep=""),width=14, height=9)
+f_nmds <- beta_f_nmds %>%
+  group_by(region) %>%
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup()
+ggplot(f_nmds, aes(x = NMDS1, y = NMDS2, color = region)) +
+  scale_color_manual(values = beta_colors[c(1:group_n)]) +
+  scale_shape_manual(values = 1:10) +
+  geom_point(size = 4) +
+  #   stat_ellipse(aes(color = beta_q1n_nmds$Groups))+
+  geom_segment(aes(x = x_cen, y = y_cen, xend = NMDS1, yend = NMDS2), alpha = 0.9) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_text(size = 20, face = "bold"),
+    axis.text = element_text(face = "bold", size = 18),
+    panel.background = element_blank(),
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+    legend.text = element_text(size = 16),
+    legend.title = element_text(size = 18),
+    legend.position = "right", legend.box = "vertical"
+  )
+#+ geom_text(aes(label = Sample), size=8)
+# dev.off()
+```
+
+***Homogeneity of variance***
+```{r permu3, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+ps.disper.functional <- betadisper(beta_f_metric, sample_metadata$region) 
+permutest(ps.disper.functional, pairwise = TRUE) 
+```
+
+***Permanova***
+```{r adonisbeta4, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+#### Adonis
+
+metarow <- column_to_rownames(sample_metadata, "sample")
+
+adonis2(beta_f_metric ~ region, data = metarow[labels(beta_f_metric), ], permutations = 999) %>%
+  as.matrix() %>%
+  knitr::kable(., digits = c(0,3,3,3,3))
+```
+
+```{r gift, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+#Aggregate bundle-level GIFTs into the compound level
+GIFTs_elements <- to.elements(genome_gifts,GIFT_db)
+GIFTs_elements_filtered <- GIFTs_elements[rownames(GIFTs_elements) %in% genome_counts_filt$genome,]
+GIFTs_elements_filtered <- as.data.frame(GIFTs_elements_filtered) %>% 
+  select_if(~ !is.numeric(.) || sum(.) != 0)
+
+#Aggregate element-level GIFTs into the function level
+GIFTs_functions <- to.functions(GIFTs_elements_filtered,GIFT_db)
+
+#Aggregate function-level GIFTs into overall Biosynthesis, Degradation and Structural GIFTs
+GIFTs_domains <- to.domains(GIFTs_functions,GIFT_db)
+
+#Get community-weighed average GIFTs per sample
+genome_counts_row <- genome_counts %>%
+  mutate_at(vars(-genome),~./sum(.)) %>% 
+  column_to_rownames(., "genome") 
+
+GIFTs_elements_community <- to.community(GIFTs_elements_filtered,genome_counts_row,GIFT_db)
+GIFTs_functions_community <- to.community(GIFTs_functions,genome_counts_row,GIFT_db)
+GIFTs_domains_community <- to.community(GIFTs_domains,genome_counts_row,GIFT_db)
+```
+
+### Community elements differences
+```{r comunity_elem, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+element_gift <- GIFTs_elements_community %>% 
+  as.data.frame() %>% 
+  rownames_to_column(., "sample") %>% 
+  merge(., sample_metadata[c(1,4)], by="sample")
+```
+
+
+```{r commun_wilcox_elem, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+uniqueGIFT_db<- unique(GIFT_db[c(2,4,5,6)]) %>% unite("Function",Function:Element, sep= "_", remove=FALSE)
+
+significant_elements <- element_gift %>%
+    pivot_longer(-c(sample,region), names_to = "trait", values_to = "value") %>%
+    group_by(trait) %>%
+    summarise(p_value = wilcox.test(value ~ region, exact = FALSE, alternative = "less")$p.value) %>%
+    mutate(p_adjust=p.adjust(p_value, method="BH")) %>%
+    filter(p_adjust < 0.05)%>%
+  rownames_to_column(., "Elements")  %>%
+  left_join(.,uniqueGIFT_db[c(1,3)],by = join_by(trait == Code_element))
+
+element_gift_t <- element_gift  %>% 
+  t() %>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  rownames_to_column(., "trait")
+
+element_gift_filt <- subset(element_gift_t, trait %in% significant_elements$trait) %>% 
+  t() %>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  rownames_to_column(., "sample")%>% 
+  left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))
+
+
+element_gift_filt %>%
+  select(-sample)%>%
+  group_by(region)  %>%
+  summarise(across(everything(), mean))%>%
+   t() %>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  rownames_to_column(., "Elements")  %>%
+  left_join(.,uniqueGIFT_db[c(1,3)],by = join_by(Elements == Code_element))
+```
+
+```{r elements_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+element_gift_names <- element_gift_filt%>%
+  select(-region)%>%
+   t() %>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  rownames_to_column(., "Elements")  %>%
+  left_join(.,uniqueGIFT_db[c(1,3)],by = join_by(Elements == Code_element))%>%
+  select(-Elements)%>%
+  select(Function, everything())%>%
+   t()%>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  rownames_to_column(., "sample")%>% 
+  left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))
+
+
+colNames <- names(element_gift_names)[2:60]
+for(i in colNames){
+  plt <- ggplot(element_gift_names, aes(x=region, y=.data[[i]], color = region)) +
+    geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
+  geom_jitter(width = 0.1, show.legend = TRUE) +
+  theme_minimal() +
+  theme(
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank())
+print(plt)
+}
+```
+
+
+### Community functions differences
+
+```{r comunity_func, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+function_gift <- GIFTs_functions_community %>% 
+  as.data.frame() %>% 
+  rownames_to_column(., "sample") %>% 
+  merge(., sample_metadata[c(1,4)], by="sample")
+```
+
+```{r commun_wilcox_func, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+unique_funct_db<- GIFT_db[c(3,4,5)] %>% 
+  distinct(Code_function, .keep_all = TRUE)
+
+
+significant_functional <- function_gift %>%
+    pivot_longer(-c(sample,region), names_to = "trait", values_to = "value") %>%
+    group_by(trait) %>%
+    summarise(p_value = wilcox.test(value ~ region, exact = FALSE, alternative = "less")$p.value) %>%
+    mutate(p_adjust=p.adjust(p_value, method="BH")) %>%
+    filter(p_adjust < 0.05)%>%
+  left_join(.,unique_funct_db[c(1,3)],by = join_by(trait == Code_function))
+
+```
+```{r  function_sig, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+function_gift_t <- function_gift  %>% 
+  select(-region)  %>% 
+  t() %>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  rownames_to_column(., "trait")
+
+function_gift_filt <- subset(function_gift_t, trait %in% significant_functional$trait) %>% 
+  t() %>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  rownames_to_column(., "sample")%>% 
+  left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))
+
+
+function_gift_filt %>%
+  select(-sample)%>%
+  group_by(region)  %>%
+  summarise(across(everything(), mean))%>%
+   t() %>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  rownames_to_column(., "Code_function")  %>%
+  left_join(.,unique_funct_db[c(1,3)],by = join_by(Code_function == Code_function))
+```
+```{r function_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+function_gift_names <- function_gift_filt%>%
+  select(-region)%>%
+   t() %>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  rownames_to_column(., "Code_function")  %>%
+  left_join(.,unique_funct_db[c(1,3)],by = join_by(Code_function == Code_function))%>%
+  select(-Code_function)%>%
+  select(Function, everything())%>%
+   t()%>%
+  row_to_names(row_number = 1) %>%
+  as.data.frame() %>%
+  mutate_if(is.character, as.numeric)  %>%
+  rownames_to_column(., "sample")%>% 
+  left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))
+
+
+colNames <- names(function_gift_names)[2:5]
+for(i in colNames){
+  plt <- ggplot(function_gift_names, aes(x=region, y=.data[[i]], color = region)) +
+    geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
+  geom_jitter(width = 0.1, show.legend = TRUE) +
+  theme_minimal() +
+  theme(
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank())
+print(plt)
+}
+```
+
+### Community domains differences
+***No differences***
+```{r comunity_dom, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+domain_gift <- GIFTs_domains_community %>% 
+  as.data.frame() %>% 
+  rownames_to_column(., "sample") %>% 
+  merge(., sample_metadata[c(1,4)], by="sample")
+```
+
+```{r commun_wilcox_dom, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+unique_domain_db<- GIFT_db[c(4)] %>% 
+  distinct(Domain, .keep_all = TRUE)
+
+significant_domain <- domain_gift %>%
+    pivot_longer(-c(sample,region), names_to = "trait", values_to = "value") %>%
+    group_by(trait) %>%
+    summarise(p_value = wilcox.test(value ~ region, exact = FALSE, alternative = "less")$p.value) %>%
+    mutate(p_adjust=p.adjust(p_value, method="BH"))
+```
+
