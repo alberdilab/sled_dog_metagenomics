@@ -40,15 +40,16 @@ load("resources/data/data.Rdata")
 ```
 
 ```{r summary, echo=FALSE, message=FALSE, warning=FALSE}
-nsamples <- ncol(read_counts) # define number of samples, by reading from the counts table
-metagenomic_bases <- sum(metadata$metagenomic_bases)
-host_bases <- sum(metadata$host_bases)
-discarded_bases <- sum(round(((metadata$metagenomic_bases+metadata$host_bases)/(1-metadata$bases_lost_fastp_percent))-(metadata$metagenomic_bases+metadata$host_bases))) #define amount of discarded bases from quality filtering
+read_counts_row <- column_to_rownames(read_counts, "genome")
+nsamples <- ncol(read_counts_row) # define number of samples, by reading from the counts table
+metagenomic_bases <- sum(sample_metadata$metagenomic_bases)
+host_bases <- sum(sample_metadata$host_bases)
+discarded_bases <- sum(round(((sample_metadata$metagenomic_bases+sample_metadata$host_bases)/(1-sample_metadata$bases_lost_fastp_percent))-(sample_metadata$metagenomic_bases+sample_metadata$host_bases))) #define amount of discarded bases from quality filtering
 total_bases <- discarded_bases + host_bases + metagenomic_bases
-singlem_bases <- sum(metadata$metagenomic_bases * metadata$singlem_fraction) 
-nmags <- nrow(read_counts) # establish number of MAGs for analysis
+singlem_bases <- sum(sample_metadata$metagenomic_bases * sample_metadata$singlem_fraction) 
+nmags <- nrow(read_counts_row) # establish number of MAGs for analysis
 
-sequencing_depth <- colSums(read_counts)
+sequencing_depth <- colSums(read_counts_row)
 sequencing_depth_sum <- sum(sequencing_depth)
 sequencing_depth_mean <- mean(sequencing_depth)
 sequencing_depth_sd <- sd(sequencing_depth)
@@ -60,7 +61,7 @@ sequencing_depth_sd <- sd(sequencing_depth)
 
 **Number of samples**
 ```{r nsamples, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-ncol(read_counts) # 58 samples
+ncol(read_counts_row) # 58 samples
 ```
 
 **Number of MAGs**
@@ -83,7 +84,7 @@ cat(totalgb) # 333.71 GB produced
 The amount of data discarded due to low quality or lack of informativeness during data preprocesing. Discarding 5-15% of the produced data is within the expected range, due to formation of adaptor dimers, inclusion of adaptors in sequencing reads due to short insert sizes, low sequencing quality, etc.
 
 ```{r discardedGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-discardgb <- sum(round(((metadata$metagenomic_bases+metadata$host_bases)/(1-metadata$bases_lost_fastp_percent))-(metadata$metagenomic_bases+metadata$host_bases)))/1000000000
+discardgb <- sum(round(((sample_metadata$metagenomic_bases+sample_metadata$host_bases)/(1-sample_metadata$bases_lost_fastp_percent))-(sample_metadata$metagenomic_bases+sample_metadata$host_bases)))/1000000000
  # quality filtering
 cat(discardgb) # 10.37 GB discarded
 ```
@@ -99,7 +100,7 @@ cat(discarddata) # 3.11% removed after quality filtering
 The amount of data mapped against the host genome. The percentage refers to the amount of data mapped to the host genome respect to quality-filtered data. Note that this value can be very variable depending on the biological features of the sample (e.g., anal swabs contain more host DNA than faeces) and the employed reference genome (e.g., the chances for mapping to the genome are lower as the distance between) the study species and the employed reference genome differ).
 
 ```{r hostGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-hostGB <- sum(metadata$host_bases)/1000000000
+hostGB <- sum(sample_metadata$host_bases)/1000000000
 cat(hostGB) # 6.49 GB from host
 ```
 
@@ -114,14 +115,14 @@ cat(hostdata) # 2.01% of quality filtered data is from host
 The amount and proportion of data belonging to prokayotic genomes respect to the total metagenomic fraction, as estimated from singleM analysis. Note that this is an estimation that relies on the genome sizes of genomes available in reference databases. If a given taxon is not properly represented, genome size estimations can be less accurate.
 
 ```{r prokaGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-prokaGB <- sum(metadata$metagenomic_bases * metadata$singlem_fraction)/1000000000
+prokaGB <- sum(sample_metadata$metagenomic_bases * sample_metadata$singlem_fraction)/1000000000
 cat(prokaGB) # 293.14 GB prokaryotic data
 ```
 
 **Estimated prokaryotic data (% of the metagenomic data):** 
 
 ```{r proka%, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-prokadata <- round(singlem_bases / (metadata$metagenomic_bases) * 100,2)
+prokadata <- round(singlem_bases / (sample_metadata$metagenomic_bases) * 100,2)
 cat(prokadata) # 92.51% of metagenomic data is prokaryotic
 ```
 
@@ -129,7 +130,7 @@ cat(prokadata) # 92.51% of metagenomic data is prokaryotic
 The amount of data mapped against the host genome. The percentage refers to the amount of data mapped to the host genome respect to quality-filtered data. Note that this value can be very variable depending on the biological features of the sample (e.g., anal swabs contain more host DNA than faeces) and the employed reference genome (e.g., the chances for mapping to the genome are lower as the distance between) the study species and the employed reference genome differ).
 
 ```{r metaGB, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-metaGB <- sum(metadata$metagenomic_bases)/1000000000
+metaGB <- sum(sample_metadata$metagenomic_bases)/1000000000
 cat(metaGB) # 316.85 GB metagenomic data
 ```
 
@@ -381,7 +382,7 @@ tSNE_func$Y %>%
 ## 4.1 DNA fractions
 
 ```{r}
-sequence_fractions <- read_counts %>%
+sequence_fractions <- read_counts_row %>%
   pivot_longer(-genome, names_to = "sample", values_to = "value") %>%
   group_by(sample) %>%
   summarise(mags = sum(value)) %>%

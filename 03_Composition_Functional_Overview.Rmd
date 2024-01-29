@@ -657,7 +657,7 @@ function_gift_names <- function_gift_filt%>%
   left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))
 
 
-colNames <- names(function_gift_names)[2:5]
+colNames <- names(function_gift_names)[2:7]
 for(i in colNames){
   plt <- ggplot(function_gift_names, aes(x=region, y=.data[[i]], color = region)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
