@@ -1644,7 +1644,9 @@ sigtab_diagdds_with_tax %>%
   theme(axis.text = element_text(size = 8),
           axis.title = element_text(size = 12),
           legend.position = "bottom", 
-          legend.title = element_blank())
+          legend.title = element_blank()) +
+  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
 ```
 ***Genera***
 ```{r deseq2, comment="", echo=FALSE, message=FALSE, warning=FALSE}
@@ -1680,7 +1682,9 @@ sigtab_diagdds_with_tax_genus %>%
   theme(axis.text = element_text(size = 8),
           axis.title = element_text(size = 12),
           legend.position = "bottom", 
-          legend.title = element_blank())
+          legend.title = element_blank()) +
+  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
 ```
 
 
@@ -1754,7 +1758,9 @@ ggplot(ancombc_rand_table, aes(x=forcats::fct_rev(taxon), y=lfc_regionIttoqqorto
           axis.title.x=element_blank())+
   xlab("Genome") + 
   ylab("log2FoldChange")+
-  guides(col=guide_legend("Phylum"))
+  guides(col=guide_legend("Phylum")) +
+  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
 ```
 ```{r ancom_rand_volcano, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 ancom_result <- ancom_rand_output$res %>%
@@ -1830,7 +1836,10 @@ ggplot(ancombc_rand_table_genus, aes(x=forcats::fct_rev(genus), y=lfc_regionItto
           axis.title.x=element_blank())+
   xlab("Genus") + 
   ylab("log2FoldChange")+
-  guides(col=guide_legend("Phylum"))
+  guides(col=guide_legend("Phylum")) +
+  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
+  
 ```
 ```{r ancom_rand_volcano, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 ancom_result_genus <- ancom_rand_output_genus$res %>%
@@ -1889,7 +1898,9 @@ ggplot(LinDA_table_filt, aes(x=forcats::fct_rev(asv), y=log2FoldChange, color=ph
   coord_flip()+
   xlab("Genome") + 
   ylab("log2FoldChange")+
-  guides(col=guide_legend("Phylum"))
+  guides(col=guide_legend("Phylum")) +
+  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
 ```
 ```{r LinDA DA P, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 library(mia)
@@ -1931,7 +1942,9 @@ ggplot(LinDA_table_filt_genus, aes(x=forcats::fct_rev(genus), y=log2FoldChange, 
   coord_flip()+
   xlab("Genome") + 
   ylab("log2FoldChange")+
-  guides(col=guide_legend("Phylum"))
+  guides(col=guide_legend("Phylum")) +
+  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
 ```
 ## ALDEx2
 
@@ -2030,8 +2043,8 @@ genome_counts_filtered.all %>%
       geom_vline(xintercept=0) +
       scale_color_manual(values=phylum_colors)+ 
       xlim(-max(genome_counts_filtered.all$effect)-1,max(genome_counts_filtered.all$effect)+1)  +
-      geom_text(aes(-max(genome_counts_filtered.all$effect)+1, 3.9), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
-      geom_text(aes(max(genome_counts_filtered.all$effect)-1, 3.9), label = "Enriched\nin Danenborg", color="#666666") +
+      geom_text(aes(-max(genome_counts_filtered.all$effect)+1, 3.9), label = "Enriched\nin Daneborg", color="#666666") +
+      geom_text(aes(max(genome_counts_filtered.all$effect)-1, 3.9), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
   theme(axis.text = element_text(size = 8, face="bold.italic"),
         axis.title = element_text(size = 12),
         legend.position = "right", 
@@ -2086,8 +2099,8 @@ genome_counts_filtered.sig %>%
       geom_vline(xintercept=0) + 
       xlim(-max(genome_counts_filtered.all$effect)-1,max(genome_counts_filtered.all$effect)+1) +
       scale_color_manual(values=phylum_colors) +
-      geom_text(aes(-max(genome_counts_filtered.all$effect)+1, 0.9), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
-      geom_text(aes(max(genome_counts_filtered.all$effect)-1, 0.9), label = "Enriched\nin Danenborg", color="#666666") +
+      geom_text(aes(-max(genome_counts_filtered.all$effect)+1, 0.9), label = "Enriched\nin Daneborg", color="#666666") +
+      geom_text(aes(max(genome_counts_filtered.all$effect)-1, 0.9), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
      theme(legend.position='right',
           panel.background = element_blank(),
           axis.line = element_line(size = 0.15, linetype = "solid", colour = "grey"),
@@ -2175,604 +2188,7 @@ DA_results_genus <- DA_results_genus[!duplicated(DA_results_genus), ]
 # library("writexl")
 # write_xlsx(DA_results_genus, "/Users/elsa/Desktop/THESIS/sled_dog_parasite\\DA_genus4.xlsx")
 ```
-# Functional Capacity Differences
-Kegg data prep from EHI workflow
-```{r kegg data prep from EHI, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-# Microbiome functional attribute table
-kegg_file="/Users/elsa/Desktop/THESIS/Thesis/DMB0032_merged_kegg.tsv"
-kegg_table <- read.table(kegg_file,sep="\t",header=T)
-kegg_table_clean <- dplyr::distinct(kegg_table) #remove duplicate rows
-kegg_table_clean_1 <- count_filtered_rel[rownames(count_filtered_rel) %in% rownames(kegg_table_clean),]
-```
-# Functional capacity
-## Community Domain level
-```{r}
-GIFTs_domains_community_df <- as.data.frame(GIFTs_domains_community)
-GIFTs_domains_community_df$sample <- rownames(GIFTs_domains_community_df)
 
-selected_columns_func <- sample_metadata %>%
-  dplyr::select(sample, region)
-
-GIFTs_domains_community_df <- dplyr::left_join(GIFTs_domains_community_df, selected_columns_func, by = "sample")
-```
-```{r}
-GIFTs_domains_community_df <- as.data.frame(GIFTs_domains_community) %>%
-  rownames_to_column(., var = "sample")
-GIFTs_domains_community_df <- merge(selected_columns_func, GIFTs_domains_community_df, by = "sample")
-GIFTs_domains_community_df <- column_to_rownames(GIFTs_domains_community_df, var = "sample")
-table.W_domain <- tibble::rownames_to_column(GIFTs_domains_community_df, "sample")
-comm_domain_table <- subset(table.W_domain, select = -c(sample))
-comm_domain_table.no <- subset(comm_domain_table, select = -c(region))
-all.comm_domain <- colnames(comm_domain_table.no)
-
-Wilcox_result_comm_domain <- c()
-for (y in all.comm_domain){ 
-  res.wilcox_comm_domain <- wilcox.test(comm_domain_table[,y] ~ region, data = comm_domain_table,
-                            exact = FALSE, alternative = "less")
-  Wilcox_result_comm_domain <- rbind(Wilcox_result_comm_domain,c(res.wilcox_comm_domain[[1]],Pvalue=res.wilcox_comm_domain[[3]]))
-}
-rownames(Wilcox_result_comm_domain) <- all.comm_domain
-Wilcox_result_comm_domain <- as.data.frame(Wilcox_result_comm_domain)
-
-Wilcox_result_comm_domain$p_adjusted <- p.adjust(Wilcox_result_comm_domain$Pvalue, method = "fdr")
-
-Wilcox_result_comm_domain_sign <- subset(Wilcox_result_comm_domain, p_adjusted <= 0.05) %>%
-  rownames_to_column(., "Domain")
-knitr::kable(Wilcox_result_comm_domain_sign, format = "html", full_width = F,col.names = c("Domain", "W", "p-value","p-value adjusted"), digits = 10) %>%
-  kable_styling(latex_options="scale_down")
-```
-Now at the Community Functions level:
-```{r}
-GIFTs_functions_community_df <- as.data.frame(GIFTs_functions_community) %>%
-  rownames_to_column(., var = "sample")
-GIFTs_functions_community_df <- merge(selected_columns_func, GIFTs_functions_community_df, by = "sample")
-GIFTs_functions_community_df <- column_to_rownames(GIFTs_functions_community_df, var = "sample")
-table.W_comm <- tibble::rownames_to_column(GIFTs_functions_community_df, "sample")
-comm_func_table <- subset(table.W_comm, select = -c(sample))
-comm_func_table.no <- subset(comm_func_table, select = -c(region))
-all.comm_func <- colnames(comm_func_table.no)
-
-Wilcox_result_comm_func <- c()
-for (y in all.comm_func){ 
-  res.wilcox_comm_func <- wilcox.test(comm_func_table[,y] ~ region, data = comm_func_table,
-                            exact = FALSE, alternative = "less")
-  Wilcox_result_comm_func <- rbind(Wilcox_result_comm_func,c(res.wilcox_comm_func[[1]],Pvalue=res.wilcox_comm_func[[3]]))
-}
-rownames(Wilcox_result_comm_func) <- all.comm_func
-Wilcox_result_comm_func <- as.data.frame(Wilcox_result_comm_func)
-
-Wilcox_result_comm_func$p_adjusted <- p.adjust(Wilcox_result_comm_func$Pvalue, method = "fdr")
-
-Wilcox_result_comm_func_sign <- subset(Wilcox_result_comm_func, p_adjusted <= 0.05) %>%
-  rownames_to_column(., "Code_function")
-knitr::kable(Wilcox_result_comm_func_sign, format = "html", full_width = F,col.names = c("Code_function", "W", "p-value","p-value adjusted"), digits = 10) %>%
-  kable_styling(latex_options="scale_down")
-
-summary_table.W_comm <- table.W_comm %>%
-  group_by(region) %>%
-  summarise(
-    mean_D09 = mean(D09),
-    sd_D09 = sd(D09),
-    mean_S02 = mean(S02),
-    sd_S02 = sd(S02),
-  ) %>%
-  filter(region %in% regions)
-```
-```{r}
-# D09-Antibiotic degradation
-cf1<- ggplot(GIFTs_functions_community_df, aes(x = region, y = D09, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "D09-Antibiotic degradation",
-    x = "Region",
-    y = "D09"
-  )
-# S02-Appendages
-cf2<- ggplot(GIFTs_functions_community_df, aes(x = region, y = S02, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "S02-Appendages",
-    x = "Region",
-    y = "S02"
-  )
-# joint figure
-library(gridExtra)
-grid.arrange(arrangeGrob(cf1, cf2, ncol = 2))
-```
-#Community Element
-```{r}
-# community element level
-GIFTs_elements_community_df <- as.data.frame(GIFTs_elements_community) %>%
-  rownames_to_column(., var = "sample")
-GIFTs_elements_community_df <- merge(selected_columns_func, GIFTs_elements_community_df, by = "sample")
-GIFTs_elements_community_df <- column_to_rownames(GIFTs_elements_community_df, var = "sample")
-table.W_elements <- tibble::rownames_to_column(GIFTs_elements_community_df, "sample")
-comm_elements_table <- subset(table.W_elements, select = -c(sample))
-comm_elements_table.no <- subset(comm_elements_table, select = -c(region))
-all.comm_elements <- colnames(comm_elements_table.no)
-
-Wilcox_result_comm_elements <- c()
-for (y in all.comm_elements){ 
-  res.wilcox_comm_elements <- wilcox.test(comm_elements_table[,y] ~ region, data = comm_elements_table,
-                            exact = FALSE, alternative = "less")
-  Wilcox_result_comm_elements <- rbind(Wilcox_result_comm_elements,c(res.wilcox_comm_elements[[1]],Pvalue=res.wilcox_comm_elements[[3]]))
-}
-rownames(Wilcox_result_comm_elements) <- all.comm_elements
-Wilcox_result_comm_elements <- as.data.frame(Wilcox_result_comm_elements)
-
-Wilcox_result_comm_elements$p_adjusted <- p.adjust(Wilcox_result_comm_elements$Pvalue, method = "fdr")
-
-Wilcox_result_comm_elements_sign <- subset(Wilcox_result_comm_elements, p_adjusted <= 0.05) %>%
-  rownames_to_column(., "Code_element")
-knitr::kable(Wilcox_result_comm_elements_sign, format = "html", full_width = F,col.names = c("Code_element", "W", "p-value","p-value adjusted"), digits = 10) %>%
-  kable_styling(latex_options="scale_down")
-
-summary_table.W_elements <- table.W_elements %>%
-  group_by(region) %>%
-  summarise(
-    mean_B0103 = mean(B0103),
-    sd_B0103 = sd(B0103),
-    mean_B1028 = mean(B1028),
-    sd_B1028 = sd(B1028),
-    mean_D0302 = mean(D0302),
-    sd_D0302 = sd(D0302),
-    mean_D0309 = mean(D0309),
-    sd_D0309 = sd(D0309),
-    mean_D0501 = mean(D0501),
-    sd_D0501 = sd(D0501),
-    mean_D0701 = mean(D0701),
-    sd_D0701= sd(D0701),
-    mean_D0705 = mean(D0705),
-    sd_D0705 = sd(D0705),
-    mean_D0807 = mean(D0807),
-    sd_D0807 = sd(D0807),
-    mean_D0905 = mean(D0905),
-    sd_D0905= sd(D0905),
-    mean_D0911 = mean(D0911),
-    sd_D0911 = sd(D0911),
-    mean_S0104 = mean(S0104),
-    sd_S0104= sd(S0104),
-    mean_S0201 = mean(S0201),
-    sd_S0201 = sd(S0201),
-  ) %>%
-  filter(region %in% regions)
-```
-```{r}
-# B0103 - Nucleic acid biosynthesis - UDP/UTP
-ce1<- ggplot(GIFTs_elements_community_df, aes(x = region, y = B0103, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "B0103 - Nucleic acid biosynthesis - UDP/UTP",
-    x = "Region",
-    y = "B0103"
-  )
-# B1028 - Antibiotic biosynthesis - Pyocyanin
-ce2<- ggplot(GIFTs_elements_community_df, aes(x = region, y = B1028, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "B1028 - Antibiotic biosynthesis - Pyocyanin",
-    x = "Region",
-    y = "B1028"
-  )
-# D0302 - Sugar degradation - Sucrose
-ce3<- ggplot(GIFTs_elements_community_df, aes(x = region, y = D0302, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "D0302 - Sugar degradation - Sucrose",
-    x = "Region",
-    y = "D0302"
-  )
-# D0309 - Sugar degradation - Galactose
-ce4<- ggplot(GIFTs_elements_community_df, aes(x = region, y = D0309, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "D0309 - Sugar degradation - Galactose",
-    x = "Region",
-    y = "D0309"
-  )
-# D0501 - Amino acid degradation - Serine
-ce5<- ggplot(GIFTs_elements_community_df, aes(x = region, y = D0501, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "D0501 - Amino acid degradation - Serine",
-    x = "Region",
-    y = "D0501"
-  )
-# D0701 - Alcohol degradation - 2,3-Butanediol
-ce6<- ggplot(GIFTs_elements_community_df, aes(x = region, y = D0701, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "D0701 - Alcohol degradation - 2,3-Butanediol",
-    x = "Region",
-    y = "D0701"
-  )
-# D0705 - Alcohol degradation - Propylene glycol
-ce7<- ggplot(GIFTs_elements_community_df, aes(x = region, y = D0705, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "D0705 - Alcohol degradation - Propylene glycol",
-    x = "Region",
-    y = "D0705"
-  )
-# D0807 - Xenobiotic degradation - Catechol
-ce8<- ggplot(GIFTs_elements_community_df, aes(x = region, y = D0807, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "D0807 - Xenobiotic degradation - Catechol",
-    x = "Region",
-    y = "D0807"
-  )
-# D0905 - Antibiotic degradation - Streptogramin
-ce9<- ggplot(GIFTs_elements_community_df, aes(x = region, y = D0905, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "D0905 - Antibiotic degradation - Streptogramin",
-    x = "Region",
-    y = "D0905"
-  )
-# D0911 - Antibiotic degradation - Lincosamide
-ce10<- ggplot(GIFTs_elements_community_df, aes(x = region, y = D0911, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "D0911 - Antibiotic degradation - Lincosamide",
-    x = "Region",
-    y = "D0911"
-  )
-# S0104 - Cellular structure - Lipoteichoic acid
-ce11<- ggplot(GIFTs_elements_community_df, aes(x = region, y = S0104, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "S0104 - Cellular structure - Lipoteichoic acid",
-    x = "Region",
-    y = "S0104"
-  )
-# S0201 - Appendages - Flagellum
-ce12<- ggplot(GIFTs_elements_community_df, aes(x = region, y = S0201, group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "S0201 - Appendages - Flagellum",
-    x = "Region",
-    y = "S0201"
-  )
-# Joint figure
-library(gridExtra)
-grid.arrange(arrangeGrob(ce1, ce2,ce3, ce4, ce5, ce6, ce7, ce8, ce9, ce10, ce11, ce12, ncol = 4))
-```
-# UPSET RDA
-```{r}
-## Upset visualization: MAGs in different locations and shared among locations
-library(UpSetR)
-locationcolors=c('#c4d7d1','#408892')
-
-count_table_rda_binary <- ifelse(genome_counts > 0, 1, 0) %>%
-  as.data.frame()
-count_table_rda_binary_ittoq <- count_table_rda_binary[, colnames(count_table_rda_binary) %in% Ittoqqortoormiit_samples]
-count_table_rda_binary_ittoq$sum_of_rows <- rowSums(count_table_rda_binary_ittoq)
-count_table_rda_binary_ittoq <- rownames_to_column(count_table_rda_binary_ittoq, var="genome")
-Ittoqqortoormiit_summed <- count_table_rda_binary_ittoq[, c('sum_of_rows', "genome")]
-colnames(Ittoqqortoormiit_summed)[colnames(Ittoqqortoormiit_summed) == 'sum_of_rows'] <- 'Ittoq'
-
-count_table_rda_binary_daneborg <- count_table_rda_binary[, colnames(count_table_rda_binary) %in% Daneborg_samples]
-count_table_rda_binary_daneborg$sum_of_rows <- rowSums(count_table_rda_binary_daneborg)
-count_table_rda_binary_daneborg <- rownames_to_column(count_table_rda_binary_daneborg, var="genome")
-daneborg_summed <- count_table_rda_binary_daneborg[, c('sum_of_rows', "genome")]
-colnames(daneborg_summed)[colnames(daneborg_summed) == 'sum_of_rows'] <- 'Daneborg'
-
-upsetrda_1 <- merge(Ittoqqortoormiit_summed, daneborg_summed, by = "genome", all =T )
-upsetrda_1 <- column_to_rownames(upsetrda_1, var='genome')
-upset_binary <- ifelse(upsetrda_1 > 0, 1, 0)
-
-#pdf("figures/MAG_intersection.pdf",width=8,height=6, onefile=F)
-upset(as.data.frame(upset_binary),
-      keep.order = T,
-      sets = rev(c("Daneborg","Ittoq")),
-      sets.bar.color= rev(locationcolors),
-      mb.ratio = c(0.55, 0.45), order.by = "freq")
-#dev.off()
-```
-##RDA
-```{r physeq object with normalized counts, structural zeros included}
-# OTU table
-MAGotu_zeros <- genome_counts %>% # genome size normalized counts
-  column_to_rownames("genome") %>%
-  otu_table(., taxa_are_rows = TRUE)
-# Tax table
-taxonomyclean1 <- taxonomyclean[,-1]
-taxmatrix <- as.matrix(taxonomyclean1[1:8])
-rownames(taxmatrix) <- taxonomyclean$genome
-taxtable <- tax_table(taxmatrix) 
-#Metadata
-metadata <- na.omit(metadata)
-rownames(metadata) <- NULL
-metadata.pre <- column_to_rownames(metadata, "sample")
-#Sample table
-sample_tab <- sample_data(metadata.pre)
-# Tree
-tree <- phytools::force.ultrametric(tree, method = "extend")
-treephylo = phyloseq::phy_tree(tree)
-## Merge into phyloseq object
-physeq_rda <- phyloseq(MAGotu_zeros, treephylo, sample_tab,taxtable)
-```
-```{r}
-## RDA
-count_table_rda <- data.frame(physeq_rda@otu_table)
-count_table_rda_t <- data.frame(t(count_table_rda))
-hel1 <- decostand(count_table_rda_t, "hellinger")
-
-physeq_rda_clr <- microbiome::transform(physeq_rda, 'clr')
-
-count_rda_clr <- data.frame(physeq_rda_clr@otu_table)
-count_rda_crl_t <- data.frame(t(count_rda_clr))
-metadata_rda_crl <- data.frame(physeq_rda_clr@sam_data)
-metadata_rda_crl <- rownames_to_column(metadata_rda_crl, "sample")
-metadata_rda_crl <- metadata_rda_crl[match(rownames(count_rda_crl_t),metadata_rda_crl$sample),]
-mean(rownames(count_rda_crl_t)==metadata_rda_crl$sample)
-metadata_rda_crl$region=factor(metadata_rda_crl$region)
-design <- metadata_rda_crl[, c("region", "sex")]
-
-rda.model <- rda(count_rda_crl_t ~ region, data = design)# Run the model
-rda.model.hel <- rda(hel1 ~ region, data = design)# Run the model
-#summary(rda.model)
-# Anova
-anova(rda.model)
-anova(rda.model.hel)
-# anova(hel_rda,by="axis")
-# summary(hel_rda)
-RsquareAdj(rda.model)
-RsquareAdj(rda.model.hel)
-anova.cca(rda.model, step = 1000)
-anova.cca(rda.model, step = 1000, by = "term")
-anova.cca(rda.model, step = 1000, by = "axis")
-perc <- round(100*(summary(rda.model)$cont$importance[2, 1:2]), 2)
-## extract scores - these are coordinates in the RDA space
-sc_si <- vegan::scores(rda.model, display="sites", choices=c(1,2), scaling=1)
-sc_sp <- vegan::scores(rda.model, display="species", choices=c(1,2), scaling=1)
-sc_bp <- vegan::scores(rda.model, display="bp", choices=c(1, 2), scaling=1)
-
-# Prepare data for plotting
-rda_sc_wa <- vegan::scores(rda.model,
-                           display = "wa",
-                           scaling = 1
-)
-rda_sc_cn <- data.frame(vegan::scores(rda.model,
-                                      display = "cn",
-                                      scaling = 1
-))
-rda_sc_sp <- data.frame(vegan::scores(rda.model,
-                                      display = "sp",
-                                      scaling = 2
-))
-
-# Select MAGs from quantile
-ASV_Scores_RDA1quantiles <- quantile(rda_sc_sp$RDA1,
-                                     probs = c(0.01, 0.99)
-)
-HighFit_ASVs <- rda_sc_sp[
-  rda_sc_sp$RDA1 < ASV_Scores_RDA1quantiles[1] |
-    rda_sc_sp$RDA1 > ASV_Scores_RDA1quantiles[2],
-]
-
-HighFit_ASVNames <- rownames(HighFit_ASVs)
-species_index <- data.frame(
-  Species = HighFit_ASVNames,
-  Index = 1:length(HighFit_ASVNames)
-)
-
-# combine dataframes
-all_dataframe <- data.frame(rda_sc_wa, design)
-
-# Plot
-ggplot(all_dataframe, aes(y = PC1, x = RDA1)) +
-  geom_point(aes(y = PC1, x = RDA1, colour = region)) +
-  xlab(paste0("RDA1 (", perc[1], "%)")) +
-  ylab(paste0("PC1 (", perc[2], "%)")) +
-  geom_segment(data = HighFit_ASVs,
-               aes(x = 0, xend = RDA1, y = 0, yend = PC1),
-               arrow = arrow(length = unit(0.25, "cm")),
-               color = "grey") +
-  geom_point(data = HighFit_ASVs,
-             aes(y = PC1, x = RDA1),
-             show.legend = FALSE,
-             color = "grey") +
-  geom_label_repel(data = HighFit_ASVs,
-                   aes(y = PC1, x = RDA1,label = species_index$Species),
-                   size = 3,
-                   show.legend = FALSE,
-                   colour = "grey",
-                   max.overlaps = 20) +
-  scale_shape_discrete(solid = TRUE) +
-  theme_bw() +
-  theme(
-    plot.title = element_text(size = 10),
-    legend.position = "none"
-  )
-
-```
-#RQL
-```{r}
-# Abundance table
-genome_counts=genome_counts
-genome_counts <- genome_counts %>%
-  column_to_rownames(., "genome")
-# Metadata
-metadata=sample_metadata
-# MAG stats (mag_length)
-counts_raw=mags_table
-
-stats <- counts_raw[,c(1,11)] %>%
-  as.data.frame()%>%
-  column_to_rownames(., "genome")
-
-# MAG taxonomy
-mags_table <- taxonomyclean
-```
-## Standardization and correction
-```{r}
-mag_weighted <- round(
-  sweep(genome_counts, MARGIN = 1, 1000, `*`), 0 
-)
-
-mag_weighted <- mag_weighted %>%
-  rownames_to_column(., var = "mag") %>%
-  pivot_longer(!mag, names_to = "sample", values_to = "counts") %>%
-  pivot_wider(names_from = "mag", values_from = "counts") %>%
-  arrange(sample) %>%
-  column_to_rownames(var = "sample")
-
-# metadata summary
-design <- metadata[, c(
-  "sample", "region", "sex"
-)]
-design$region<-0
-design$region[design$region=="Daneborg"]<-1
-for(i in 1:ncol(design)){
-  if(is.character(design[,i])){
-    design[,i]<-factor(design[,i])
-  }
-}
-design$sex<-0
-design$sex[design$sex=="Male"]<-1
-for(i in 1:ncol(design)){
-  if(is.character(design[,i])){
-    design[,i]<-factor(design[,i])
-  }
-}
-# MAG functional annotations (DAMMA)
-functions <- GIFTs_functions %>%
-  as.data.frame()
-functions <- functions[,colSums(functions)>0]
-```
-## RLQ analysis (functions)
-```{r}
-mag_weighted_rel <- decostand(mag_weighted,method = "total")
-mag_weighted_rel_log <- log1p(mag_weighted_rel)
-```
-```{r}
-#Correspondence analysis (dudi.coa) is applied to the species table.
-AnalysisL_functions <- dudi.coa(mag_weighted_rel_log, scannf = FALSE)
-
-#Separate analyses of traits and environmental variables should be weighted by the sites and species weights derived from the previous correspondence analysis.
-#Principal Component Analysis (PCA) if all variables are continuous
-# AnalysisQ_functions <- dudi.pca(functions, row.w = AnalysisL_functions$cw,scannf = FALSE)
-#Hill and smith analysis if there is a mix of continuous and categorical variables. Hill and smith analysis is calculated with dudi.hillsmith()
-AnalysisR_functions <- dudi.hillsmith(design[,c(5,6)], row.w = AnalysisL_functions$lw,scannf = FALSE)#function that allows to consider mix of different types of variables
-```
-```{r}
-rlq.functions <- rlq(AnalysisR_functions, AnalysisL_functions, AnalysisQ_functions,scannf = FALSE)
-summary(rlq.functions)
-```
 #Kraken
 ```{r Percent Eukaryotic summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 summary(sample_metadata$Eukaryota_.)
