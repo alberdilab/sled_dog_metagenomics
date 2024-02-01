@@ -2176,6 +2176,31 @@ genome_counts_filtered.sig %>%
 ```
 
 #Kraken
+```{r}
+kraken_columns <- c("sample", "region", names(sample_metadata)[30:51])
+
+# Subset the all_metadata dataframe
+kraken_data <- sample_metadata[kraken_columns]
+```
+
+```{r}
+colNames_kraken <- setdiff(names(kraken_data), "Toxacaris_.")
+
+
+for(i in colNames_kraken){
+  plt_kraken <- ggplot(kraken_data, aes(x=region, y=.data[[i]], color = region)) +
+    geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
+  geom_jitter(width = 0.1, show.legend = TRUE) +
+  theme_minimal() +
+  theme(
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank())
+print(plt_kraken)
+}
+```
+
 
 ```{r Percent Eukaryotic summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 summary(sample_metadata$Eukaryota_.)
