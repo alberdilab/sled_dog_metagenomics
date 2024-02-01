@@ -209,6 +209,7 @@ colors_alphabetic <- ehi_phylum_colors %>%
   right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
     arrange(match(genome, tree$tip.label)) %>%
   select(phylum, colors) %>%
+  mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
     unique() %>%
     arrange(phylum) %>%
     select(colors) %>%
@@ -980,7 +981,7 @@ element_gift_names <- element_gift_filt%>%
   dplyr::left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))
 
 
-colNames <- names(element_gift_names)[2:60] # change to change number of plotted elements
+colNames <- names(element_gift_names)[2:87] # change to change number of plotted elements
 for(i in colNames){
   plt <- ggplot(element_gift_names, aes(x=region, y=.data[[i]], color = region)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
@@ -1065,7 +1066,7 @@ function_gift_names <- function_gift_filt%>%
   dplyr::left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))
 
 
-colNames <- names(function_gift_names)[2:7] # change to change number of plotted functions
+colNames <- names(function_gift_names)[2:13] # change to change number of plotted functions
 for(i in colNames){
   plt <- ggplot(function_gift_names, aes(x=region, y=.data[[i]], color = region)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
@@ -1096,7 +1097,7 @@ unique_domain_db<- GIFT_db[c(4)] %>%
 significant_domain <- domain_gift %>%
     pivot_longer(-c(sample,region), names_to = "trait", values_to = "value") %>%
     group_by(trait) %>%
-    summarise(p_value = wilcox.test(value ~ region, exact = FALSE, alternative = "less")$p.value) %>%
+    summarise(p_value = wilcox.test(value ~ region, exact = FALSE)$p.value) %>%
     mutate(p_adjust=p.adjust(p_value, method="BH"))
 ```
 
@@ -1137,31 +1138,31 @@ Ittoqqortoormiit_samples <- sample_metadata %>%
 
 structural_zeros <- genome_counts %>% 
    dplyr::rowwise() %>% #compute for each row (genome)
-   mutate(all_zeros_Ittoq = all(c_across(all_of(Ittoqqortoormiit_samples)) == 0)) %>% # set true if all samples in Ittoq have zeros
+   mutate(all_zeros_Ittoqqortoormiit = all(c_across(all_of(Ittoqqortoormiit_samples)) == 0)) %>% # set true if all samples in Ittoqqortoormiit have zeros
    mutate(all_zeros_Daneborg = all(c_across(all_of(Daneborg_samples)) == 0)) %>% # set true if all samples in Daneborg have zeros
-   mutate(average_Ittoq = mean(c_across(all_of(Ittoqqortoormiit_samples)), na.rm = TRUE)) %>% # get average genome counts across Ittoq
+   mutate(average_Ittoqqortoormiit = mean(c_across(all_of(Ittoqqortoormiit_samples)), na.rm = TRUE)) %>% # get average genome counts across Ittoqqortoormiit
    mutate(average_Daneborg = mean(c_across(all_of(Daneborg_samples)), na.rm = TRUE)) %>% # get average genome counts across Daneborg
-   filter(all_zeros_Ittoq == TRUE || all_zeros_Daneborg==TRUE)  %>% # filter only genomes with structural zeros
+   filter(all_zeros_Ittoqqortoormiit == TRUE || all_zeros_Daneborg==TRUE)  %>% # filter only genomes with structural zeros
    mutate(present = case_when(
-      all_zeros_Ittoq & !all_zeros_Daneborg ~ "Daneborg",
-      !all_zeros_Ittoq & all_zeros_Daneborg ~ "Ittoq",
-      !all_zeros_Ittoq & !all_zeros_Daneborg ~ "None",
+      all_zeros_Ittoqqortoormiit & !all_zeros_Daneborg ~ "Daneborg",
+      !all_zeros_Ittoqqortoormiit & all_zeros_Daneborg ~ "Ittoqqortoormiit",
+      !all_zeros_Ittoqqortoormiit & !all_zeros_Daneborg ~ "None",
       TRUE ~ NA_character_
     )) %>%
-   mutate(average = ifelse(present == "Ittoq", average_Ittoq, average_Daneborg)) %>%
+   mutate(average = ifelse(present == "Ittoqqortoormiit", average_Ittoqqortoormiit, average_Daneborg)) %>%
    dplyr::select(genome, present, average) %>%
    dplyr::left_join(genome_metadata, by=join_by(genome==genome)) %>%
    arrange(present,-average)
 ```
 ```{r plot structural zeros}
 structural_zeros %>%
-    mutate(average = ifelse(present == "Ittoq", average * -1, average)) %>% #convert Ittoq genome counts to negative
+    mutate(average = ifelse(present == "Ittoqqortoormiit", average * -1, average)) %>% #convert Ittoqqortoormiit genome counts to negative
     ggplot(., aes(x=average, y=forcats::fct_rev(phylum), color=phylum)) +
       geom_jitter(size=3) +
       geom_vline(xintercept=0) + 
       xlim(-max(structural_zeros$average)-3,max(structural_zeros$average)+3) +
       scale_color_manual(values=phylum_colors) +
-      geom_text(aes(-max(structural_zeros$average)+5, 1), label = "Only present\nin Ittoq", color="#666666") +
+      geom_text(aes(-max(structural_zeros$average)+5, 1), label = "Only present\nin Ittoqqortoormiit", color="#666666") +
       geom_text(aes(max(structural_zeros$average)-5, 1), label = "Only present\nin Daneborg", color="#666666") +
      theme(legend.position='none',
           panel.background = element_blank(),
@@ -1270,7 +1271,7 @@ no_Ittoqqortoormiit <- table_upset_analysis_binary %>% dplyr::select(Ittoqqortoo
       dplyr::left_join(., genome_metadata, by = join_by(genome == genome)) %>% dplyr::select(c(1,4:9))
 total_absent_Ittoqqortoormiit <- no_Ittoqqortoormiit %>%
 	nrow()
-total_absent_Ittoqqortoormiit # 37 MAGs only in Daneborg
+cat(total_absent_Ittoqqortoormiit) # 37 MAGs only in Daneborg
 ```
 
 ***Mags only present in Daneborg with species-level annotation***
@@ -1286,7 +1287,7 @@ new_species_Ittoqqortoormiit <- no_Ittoqqortoormiit %>%
 	nrow()
 no_Ittoqqortoormiit %>%
 	filter(species == "s__") %>% dplyr::select(c(1:6))
-new_species_Ittoqqortoormiit*100/total_absent_Ittoqqortoormiit # 21 Daneborg unique MAGs w/o species-level annotation
+cat(new_species_Ittoqqortoormiit*100/total_absent_Ittoqqortoormiit) # 21 Daneborg unique MAGs w/o species-level annotation
 ```
 ### Phylum percentages
 
@@ -1354,7 +1355,7 @@ clr_t <- as.data.frame(t(as.matrix(physeq_clr@otu_table))) %>%
 significant_genome <- clr_t %>%
     pivot_longer(-c(sample,region), names_to = "Genome", values_to = "value") %>%
     group_by(Genome) %>%
-    summarise(p_value = wilcox.test(value ~ region, exact = FALSE, alternative = "less")$p.value) %>%
+    summarise(p_value = wilcox.test(value ~ region, exact = FALSE)$p.value) %>%
     mutate(p_adjust=p.adjust(p_value, method="BH")) %>%
     filter(p_adjust < 0.05)
 significant_genome
@@ -1393,7 +1394,7 @@ clr_t_genus <- as.data.frame(t(as.matrix(physeq_clr_genus@otu_table))) %>%
 significant_genus <- clr_t_genus %>%
     pivot_longer(-c(sample,region), names_to = "Genus", values_to = "value") %>%
     group_by(Genus) %>%
-    summarise(p_value = wilcox.test(value ~ region, exact = FALSE, alternative = "less")$p.value) %>%
+    summarise(p_value = wilcox.test(value ~ region, exact = FALSE)$p.value) %>%
     mutate(p_adjust=p.adjust(p_value, method="BH")) %>%
     filter(p_adjust < 0.05)
 significant_genus
@@ -1562,28 +1563,47 @@ difMAGs <- cbind(as.data.frame(results[results$table$FDR<0.05,]), taxonomy[rowna
 ```
 
 ```{r edger_plot1, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-difMAGs %>%
-  rownames_to_column(., "genome") %>%
+difMAGs_row  <- difMAGs %>%
+  rownames_to_column(., "genome")
+phylum_colors <- ehi_phylum_colors %>%
+  dplyr::right_join(difMAGs_row, by=join_by(phylum == phylum)) %>%
+    arrange(match(genome, tree$tip.label)) %>%
+    dplyr::select(phylum, colors) %>%
+    mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
+    unique() %>%
+    arrange(phylum) %>%
+    dplyr::select(colors) %>%
+    pull()
+
+difMAGs_row %>%
 ggplot(aes(x=genome, y=logFC, color=phylum)) + 
   geom_point(size=4) +
-  geom_hline(yintercept=0) + 
+  geom_hline(yintercept=0) +
+  scale_color_manual(values=phylum_colors) + 
   coord_flip()+
   theme(axis.text = element_text(size = 10, face="bold.italic"),
-          axis.title = element_text(size = 12),
-          legend.position = "bottom", 
-          legend.title = element_blank())
+        axis.title = element_text(size = 12),
+        legend.position = "right", 
+        legend.title = element_blank(),
+        panel.background = element_blank(),
+          panel.grid.major = element_line(size = 0.15, linetype = 'solid',
+                                colour = "grey"))
 ```
+
 ```{r edger_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-difMAGs %>%
-  rownames_to_column(., "genome") %>%
+difMAGs_row %>%
 ggplot(aes(x=genus, y=logFC, color=phylum)) + 
   geom_point(size=4) +
   geom_hline(yintercept=0) + 
   coord_flip()+
+  scale_color_manual(values=phylum_colors)+
   theme(axis.text = element_text(size = 10, face="bold.italic"),
-          axis.title = element_text(size = 12),
-          legend.position = "bottom", 
-          legend.title = element_blank())
+        axis.title = element_text(size = 12),
+        legend.position = "right", 
+        legend.title = element_blank(),
+        panel.background = element_blank(),
+          panel.grid.major = element_line(size = 0.15, linetype = 'solid',
+                                colour = "grey"))
 ```
 
 ## DESeq2
@@ -1913,7 +1933,170 @@ ggplot(LinDA_table_filt_genus, aes(x=forcats::fct_rev(genus), y=log2FoldChange, 
   ylab("log2FoldChange")+
   guides(col=guide_legend("Phylum"))
 ```
-#################################### ## Add ALDEx2 ## ####################################
+## ALDEx2
+
+```{r aldex, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+library(ALDEx2)
+genome_counts_row <- column_to_rownames(genome_counts, "genome")
+genome_counts_row_new <- genome_counts_row[,order(colnames(genome_counts_row))]
+#sample_metadata_test <- sample_metadata[order(sample_metadata$sample %in% colnames(genome_counts_row),)]
+sample_metadata_new <- sample_metadata[ order(sample_metadata$sample),]
+colnames(genome_counts_row_new) %in% sample_metadata_new$sample
+dim(sample_metadata_new)[1]==dim(genome_counts_row_new)[2]
+
+genome_counts_aldex <- genome_counts_row_new %>% rownames_to_column(., "genome") %>%
+  filter(!genome %in% structural_zeros$genome) %>% # remove structural zeros
+  column_to_rownames(var="genome") %>%
+  mutate_all(~ . * 1e6) %>% #multiple by a million
+  round(0) #round to integer
+
+genome_counts_filtered.clr <- aldex.clr(genome_counts_aldex, 
+               sample_metadata_new$region, #not a factor
+               mc.samples=128, 
+               denom="all", 
+               verbose=F)
+```
+
+```{r aldex_test, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+genome_counts_filtered.ttest <- aldex.ttest(genome_counts_filtered.clr, 
+                hist.plot=F, 
+                paired.test=F, 
+                verbose=F)
+```
+
+```{r aldex_effect, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+genome_counts_filtered.effect <- aldex.effect(genome_counts_filtered.clr, 
+              CI=T, 
+              verbose=F, 
+              include.sample.summary=F, 
+              glm.conds=NULL, 
+              useMC=F)
+```
+
+```{r aldex_meta, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+genome_counts_filtered.all <- data.frame(genome_counts_filtered.ttest,genome_counts_filtered.effect) %>%
+    rownames_to_column(var="genome") %>%
+    left_join(genome_metadata,by=join_by(genome==genome))
+```
+
+```{r aldex_volcano, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+genome_counts_filtered.all %>%
+    mutate(significance = ifelse(wi.eBH < 0.05, "1", "0")) %>% 
+    ggplot(., aes(x=-log(wi.eBH), y=diff.btw, color=significance)) + 
+      geom_point() +
+      scale_color_manual(values = c("#cccccc","#00FFFF")) +
+      labs(color="Significance", y="Difference between region", x="p-value") +
+      theme_classic()
+```
+
+```{r aldex_effect_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+genome_counts_filtered.all %>%
+    mutate(significance = ifelse(wi.eBH < 0.05, "1", "0")) %>%
+    ggplot(., aes(x=diff.win, y=diff.btw, color=significance)) +
+      geom_abline(intercept = 0, slope =  0, linewidth=0.4, linetype="solid",  color="#000000") +
+      geom_abline(intercept = 0, slope =  1, linewidth=0.4, linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope =  2, linewidth=0.6,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope =  4, linewidth=0.8,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope = -1, linewidth=0.4, linetype="dashed", color="#000000") + 
+      geom_abline(intercept = 0, slope = -2, linewidth=0.6,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope = -4, linewidth=0.8,   linetype="dashed", color="#000000") +
+      geom_point() +
+      scale_color_manual(values = c("#cccccc90","#00FFFF90")) +
+      geom_text(aes(2.5, 20), label = "Enriched\nin Danenborg", color="#666666") +
+      geom_text(aes(2.5, -20), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+      labs(color="Significance", y="Difference between region", x="Dispersion within sample types") +
+      theme_classic()
+```
+
+```{r plota_padj, comment="", echo=FALSE, message=FALSE, warning=FALSE, fig.height=12, fig.width=10, fig.fullwidth=TRUE}
+#Get phylum colors from the EHI standard
+genome_counts_filtered.padj <- genome_counts_filtered.all %>%
+    filter(wi.eBH < 0.05)
+phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
+  right_join(genome_counts_filtered.padj, by=join_by(phylum == phylum)) %>%
+    arrange(match(genome,tree$tip.label)) %>%
+    dplyr::select(phylum, colors) %>%
+    mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
+    unique() %>%
+    arrange(phylum) %>%
+    dplyr::select(colors) %>%
+    pull()
+
+genome_counts_filtered.all %>%
+    filter(wi.eBH < 0.05) %>%
+    ggplot(., aes(x=effect, y=forcats::fct_rev(genome), color=phylum)) +
+      geom_jitter(size=3) +
+      geom_vline(xintercept=0) +
+      scale_color_manual(values=phylum_colors)+ 
+      xlim(-max(genome_counts_filtered.all$effect)-1,max(genome_counts_filtered.all$effect)+1)  +
+      geom_text(aes(-max(genome_counts_filtered.all$effect)+1, 3.9), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+      geom_text(aes(max(genome_counts_filtered.all$effect)-1, 3.9), label = "Enriched\nin Danenborg", color="#666666") +
+  theme(axis.text = element_text(size = 8, face="bold.italic"),
+        axis.title = element_text(size = 12),
+        legend.position = "right", 
+        panel.background = element_blank(),
+          panel.grid.major = element_line(size = 0.15, linetype = 'solid',
+                                colour = "grey"))+
+  xlab("log2FoldChange") + 
+  ylab("Genome")
+```
+
+## Significance based on posterior probabilities
+
+```{r plota1, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+genome_counts_filtered.all %>%
+    mutate(significance = ifelse(overlap < 0.1, "1", "0")) %>%
+    ggplot(., aes(x=diff.win, y=diff.btw, color=significance)) +
+      geom_abline(intercept = 0, slope =  0, size=0.4, linetype="solid",  color="#000000") +
+      geom_abline(intercept = 0, slope =  1, size=0.4, linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope =  2, size=0.6,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope =  4, size=0.8,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope = -1, size=0.4, linetype="dashed", color="#000000") + 
+      geom_abline(intercept = 0, slope = -2, size=0.6,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope = -4, size=0.8,   linetype="dashed", color="#000000") +
+      geom_point() +
+      scale_color_manual(values = c("#cccccc90","#00FFFF90")) +
+      geom_text(aes(3.5, 20), label = "Enriched\nin Danenborg", color="#666666") +
+      geom_text(aes(3.5, -20), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+      labs(color="Significance", y="Difference between sample types", x="Dispersion within sample types") +
+      theme_classic()
+```
+
+```{r plota, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+
+genome_counts_filtered.sig <- genome_counts_filtered.all %>%
+  filter(overlap < 0.1) 
+
+#Get phylum colors from the EHI standard
+phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
+  right_join(genome_counts_filtered.sig, by=join_by(phylum == phylum)) %>%
+    arrange(match(genome,tree$tip.label)) %>%
+    dplyr::select(phylum, colors) %>%
+    mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
+    unique() %>%
+    arrange(phylum) %>%
+    dplyr::select(colors) %>%
+    pull()
+
+genome_counts_filtered.sig %>%
+    ggplot(., aes(x=effect, y=forcats::fct_rev(genome), color=phylum)) +
+      geom_jitter(size=3) +
+      geom_vline(xintercept=0) + 
+      xlim(-max(genome_counts_filtered.all$effect)-1,max(genome_counts_filtered.all$effect)+1) +
+      scale_color_manual(values=phylum_colors) +
+      geom_text(aes(-max(genome_counts_filtered.all$effect)+1, 0.9), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+      geom_text(aes(max(genome_counts_filtered.all$effect)-1, 0.9), label = "Enriched\nin Danenborg", color="#666666") +
+     theme(legend.position='right',
+          panel.background = element_blank(),
+          axis.line = element_line(size = 0.15, linetype = "solid", colour = "grey"),
+          axis.title.x=element_blank())+
+      labs(y="Genome") + 
+      guides(col=guide_legend("Phylum"))
+
+```
+
 
 #### Merged DA
 ```{r merged genome}
