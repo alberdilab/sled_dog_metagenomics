@@ -122,8 +122,8 @@ cat(prokaGB) # 293.14 GB prokaryotic data
 **Estimated prokaryotic data (% of the metagenomic data):** 
 
 ```{r proka%, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-prokadata <- round(singlem_bases / (sample_metadata$metagenomic_bases) * 100,2)
-cat(prokadata) # 92.51% of metagenomic data is prokaryotic
+prokadata <- sum(sample_metadata$metagenomic_bases * sample_metadata$singlem_fraction)/1000000000
+cat(prokadata)
 ```
 
 **Amount of metagenomic data (GB):**
@@ -325,64 +325,13 @@ grid.arrange(grobs = list(genome_completeness,genome_biplot,genome_contamination
                               c(2,2,2,2,2,2,2,2,2,2,2,3)))
 ```
 
-## 3.3 Functional attributes of MAGs
-```{r kegg_tree, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-kegg_tree <- force.ultrametric(tree,method="extend") %>%
-                ggtree(., size = 0.3)
-```
-```{r kegg_tree_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-colors_alphabetic <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
-  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
-  arrange(match(genome, tree$tip.label)) %>%
-  select(phylum, colors) %>%
-    unique() %>%
-    arrange(phylum) %>%
-    select(colors) %>%
-    pull()
-
-#Add phylum colors next to the tree tips
-    kegg_tree <- gheatmap(kegg_tree, heatmap, offset=0, width=0.1, colnames=FALSE) +
-            scale_fill_manual(values=colors_alphabetic)
-
-#Reset fill scale to use a different colour profile in the heatmap
-kegg_tree <- kegg_tree + new_scale_fill()
-
-#Add KEGG heatmap
-kegg_tree <- gheatmap(kegg_tree, genome_gifts, offset=0.5, width=3.5, colnames=FALSE) +
-            vexpand(.08) +
-            coord_cartesian(clip = "off") +
-            scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white")
-
-#Plot combined tree + heatmap
-kegg_tree +
-            theme(legend.position='none')
-```
-
-## 3.4 Functional ordination of MAGs
-```{r tse, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-# Generate the tSNE ordination
-tSNE_func <- Rtsne(X=kegg_table, dims = 2, check_duplicates = FALSE)
-
-# Plot the ordination
-tSNE_func$Y %>%
-  as.data.frame() %>%
-  mutate(genome=rownames(kegg_table)) %>%
-  inner_join(genome_metadata, by="genome") %>%
-  rename(tSNE1="V1", tSNE2="V2") %>%
-  select(genome,phylum,tSNE1,tSNE2, completeness) %>%
-  ggplot(aes(x = tSNE1, y = tSNE2, color = phylum, size=completeness))+
-  geom_point(shape=16, alpha=0.7) +
-  scale_color_manual(values=colors_alphabetic) +
-  theme_minimal() +
-  theme(legend.position = "none")
-```
 
 # 4 Sequencing Assessment
 
 ## 4.1 DNA fractions
 
 ```{r}
-sequence_fractions <- read_counts_row %>%
+sequence_fractions <- read_counts %>%
   pivot_longer(-genome, names_to = "sample", values_to = "value") %>%
   group_by(sample) %>%
   summarise(mags = sum(value)) %>%
