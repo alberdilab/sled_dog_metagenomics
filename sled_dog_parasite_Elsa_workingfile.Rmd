@@ -2203,7 +2203,6 @@ for (col_name in column_names) {
 merged_means <- Reduce(function(x, y) merge(x, y, by = "region", all = TRUE), means_list_kraken)
 ```
 
-
 ```{r wilcox0_kraken, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 kraken_subset <- kraken_data[, c("Eukaryota_.","Cryptosporidium_.","Giardia_.","Sarcocystis_.","Toxoplasma_gondii_.","Trichinella_.","Uncinaria_."               , "Echinococcus_.", "Taenia_.","Cestoda_.","Nematoda_.","Virus_.", "PARVO_Parvoviridae_.","PARVO_Bocaparvovirus_.","ADENO_Adenoviridae_.", "PAP_Papillomaviridae_.", "sample", "region")] # subset kraken_data to only include Parasites present in both regions
 
