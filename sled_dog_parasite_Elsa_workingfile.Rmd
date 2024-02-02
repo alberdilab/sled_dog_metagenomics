@@ -2176,19 +2176,56 @@ genome_counts_filtered.sig %>%
 ```
 
 #Kraken
-```{r}
-kraken_columns <- c("sample", "region", names(sample_metadata)[30:51])
-
-# Subset the all_metadata dataframe
-kraken_data <- sample_metadata[kraken_columns]
+```{r kraken data}
+# read in kraken data
+kraken_data <- read.csv("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/kraken_data.csv")
+colNames_kraken <- setdiff(names(kraken_subset), c("region", "sample"))
 ```
 
-```{r}
-colNames_kraken <- setdiff(names(kraken_data), "Toxacaris_.")
+```{r kraken means}
+column_names <-colNames_kraken
+
+means_list_kraken <- list()
+
+for (col_name in column_names) {
+  mean_data <- kraken_data %>%
+    group_by(region) %>%
+    summarise(!!paste0("mean_", col_name) := mean(!!sym(col_name), na.rm = TRUE))
+  
+  means_list_kraken[[col_name]] <- mean_data
+}
+
+for (col_name in column_names) {
+  cat("Mean for", col_name, ":\n")
+  print(head(means_list_kraken[[col_name]]))
+}
+
+merged_means <- Reduce(function(x, y) merge(x, y, by = "region", all = TRUE), means_list_kraken)
+```
 
 
+```{r wilcox0_kraken, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+kraken_subset <- kraken_data[, c("Eukaryota_.","Cryptosporidium_.","Giardia_.","Sarcocystis_.","Toxoplasma_gondii_.","Trichinella_.","Uncinaria_."               , "Echinococcus_.", "Taenia_.","Cestoda_.","Nematoda_.","Virus_.", "PARVO_Parvoviridae_.","PARVO_Bocaparvovirus_.","ADENO_Adenoviridae_.", "PAP_Papillomaviridae_.", "sample", "region")] # subset kraken_data to only include Parasites present in both regions
+
+wilcox_kraken <- kraken_subset %>%
+    pivot_longer(-c(sample, region), names_to = "Parasite", values_to = "value") %>%
+    group_by(Parasite) %>%
+    summarise(p_value = {
+        if (n_distinct(region) >= 2) {
+            wilcox.test(value ~ region, data = cur_data(), exact = TRUE)$p.value
+        } else {
+            NA
+        }
+    }) %>%
+    mutate(p_adjust = ifelse(!is.na(p_value), p.adjust(p_value, method = "BH"), NA))
+
+
+significant_kraken <- wilcox_kraken %>%
+  filter(!is.na(p_adjust) & p_adjust < 0.05)
+```
+```{r kraken plotting}
 for(i in colNames_kraken){
-  plt_kraken <- ggplot(kraken_data, aes(x=region, y=.data[[i]], color = region)) +
+  plt_kraken <- ggplot(kraken_subset, aes(x=region, y=.data[[i]], color = region)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
   geom_jitter(width = 0.1, show.legend = TRUE) +
   theme_minimal() +
@@ -2201,451 +2238,6 @@ print(plt_kraken)
 }
 ```
 
-
-```{r Percent Eukaryotic summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Eukaryota_.)
-# Range 3-13 % reads mapped to Eukaryota
-# Med = 8.5%, Mean = 8.517
-
-# Shapiro-Wilk test for normality
-shapiro_results_Euk <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Eukaryota_.)$p.value) # Results: p = 0.00615 Daneborg, p = 0.0369 Ittoq
-
-# Wilcoxon Exact rank test
-library(exactRankTests)
-wilcox_exact_results_Euk <- exactRankTests::wilcox.exact(Eukaryota_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Euk) # Results: p = 0.6329 # THEREFORE no sig difference in % Eukaryotic reads between regions
-
-# Plot
-ggplot(sample_metadata, aes(x = region, y = Eukaryota_., group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Eukaryota",
-    x = "Region",
-    y = "% of unmapped reads"
-  )
-```
-**For all remaining summaries, values are reported as the % of Eukaryotic data mapped to each taxa, and "no" means that PR found no parasites, whereas "yes" indicates that samples tested positive**
-Cryptosporidium
-```{r Cryptosporidium summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Cryptosporidium_.)
-# Range 0.00300 - 0.02000 , note no samples with 0s
-# Med = 0.00600, Mean = 0.00669
-
-# Shapiro-Wilk test for normality (grouped by region)
-shapiro_results_Crypto_R <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Cryptosporidium_.)$p.value) # Results: p = 0.0631 Daneborg, p = 0.0000802 Ittoq
-shapiro_results_Crypto_PR <- sample_metadata %>%
-  filter(PR_cryptosporidium != "excluded") %>%
-  group_by(PR_cryptosporidium) %>%
-  summarise(shapiro_p_value = shapiro.test(Cryptosporidium_.)$p.value) # Results: p =  0.00000147 for "no" , p = 0.621 for "yes"
-
-# Wilcoxon Exact rank test
-library(exactRankTests)
-wilcox_exact_results_Crypto_R <- exactRankTests::wilcox.exact(Cryptosporidium_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Crypto_R) # Results: p = 0.007237 # THEREFORE there IS a significant difference in Crypto between regions
-wilcox_results_Crypto_PR <- sample_metadata %>%
-  filter(PR_cryptosporidium != "excluded") %>%
-  group_by(PR_cryptosporidium) %>%
-  summarise(wilcox_p_value = wilcox.test(Cryptosporidium_. ~ PR_cryptosporidium, data = .)$p.value) # Results: p =  0.483 # THEREFORE no significant difference detected in Cryptosporidium values, when grouped by PR results 
-
-# Plot by region
-ggplot(sample_metadata, aes(x = region, y = Cryptosporidium_., group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Cryptosporidium",
-    x = "Region",
-    y = "% of Eukaryotic reads"
-  )
-
-# Plot by PR results
-ggplot(sample_metadata %>% filter(PR_cryptosporidium != "excluded"),
-       aes(x = PR_cryptosporidium, y = Cryptosporidium_., group = PR_cryptosporidium, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Cryptosporidium",
-    x = "PR Results",
-    y = "% of Eukaryotic reads"
-  )
-
-############ what happens when we remove the outlier at 0.02?
-```
-Giardia
-```{r Giardia summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Giardia_.)
-# Range 0 - 0.004
-summary((subset(sample_metadata, Giardia_. != 0)$Giardia_.))
-# range 0.00001 - 0.004 ; when negative samples are removed
-means_Giardia_region <- sample_metadata %>%
-  group_by(region) %>%
-  summarize(mean_Giardia = mean(Giardia_., na.rm = TRUE)) # means = 0.00035 Daneborg, 0.00047 Ittoq
-
-# Shapiro-Wilk test for normality (grouped by region)
-shapiro_results_Giardia_R <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Giardia_.)$p.value) # Results: p = 6.32e-10 Daneborg, p = 4.12e- 5 Ittoq
-shapiro_results_Giardia_PR <- sample_metadata %>%
-  filter(PR_giardia != "excluded") %>%
-  group_by(PR_giardia) %>%
-  summarise(shapiro_p_value = shapiro.test(Giardia_.)$p.value) # Results: p =  1.52e-11 for "no" , p = 6.72e- 1 for "yes"
-
-# Wilcoxon Exact rank test
-library(exactRankTests)
-wilcox_exact_results_Giardia_R <- sample_metadata %>%
-  filter(Giardia_. != 0) %>%
-  wilcox.exact(Giardia_. ~ region, data = .) # Results: p = p-value = 0.01454 significant difference in Giardia between regions
-
-wilcox_results_Giardia_PR <- sample_metadata %>%
-  filter(PR_giardia != "excluded") %>%
-  filter(Giardia_. != 0) %>%
-  summarise(wilcox_p_value = wilcox.test(Giardia_. ~ PR_giardia, data = .)$p.value)
-# Results: p =  0.0521357 no significant difference detected in Giardia values, when grouped by PR results 
-
-# Plot by region
-ggplot(sample_metadata %>% filter(Giardia_. != 0), aes(x = region, y = Giardia_., group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Giardia",
-    x = "Region",
-    y = "% of Eukaryotic reads"
-  )
-
-# Plot by PR results
-ggplot(sample_metadata %>% filter(PR_giardia != "excluded") %>% filter(Giardia_. != 0),
-       aes(x = PR_giardia, y = Giardia_., group = PR_giardia, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Giardia",
-    x = "Classical Parasitology",
-    y = "% of Eukaryotic reads"
-  )
-```
-Sarcocystis
-```{r Sarcocystis summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Sarcocystis_.)
-# Range 0 - 3.000e-04 
-# Med = 0, Mean = 6.207e-06
-
-# only 3 samples (2 Ittoq, 1 Daneborg) had Sarcocystis DNA. 
-```
-Toxoplasma_gondii
-```{r Toxoplasma_gondii summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Toxoplasma_gondii_.)
-# Range 0.001 - 0.03 ; Med = 0.004, Mean = 0.004897 
-means_T_gondii_region <- sample_metadata %>%
-  group_by(region) %>%
-  summarize(mean_T_gondii = mean(Toxoplasma_gondii_., na.rm = TRUE)) # Daneborg 0.00445 ; Ittoq 0.00534
-
-# Shapiro-Wilk test for normality (grouped by region)
-shapiro_results_Toxoplasma_gondii_R <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Toxoplasma_gondii_.)$p.value) # Results: p = 0.00431 Daneborg, p = 0.00000000427 Ittoq # THEREFORE cannot assume normality for whole dataset
-
-# Wilcoxon Exact rank test
-wilcox_exact_results_Toxoplasma_gondii_R <- exactRankTests::wilcox.exact(Toxoplasma_gondii_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Toxoplasma_gondii_R)
-# Results: p-value = 0.6477 NO significant difference in Toxoplasma_gondii between regions
-
-# serological testing for only 5 dogs by P/R, only one positive, so too small to compare
-
-# Plot by region
-ggplot(sample_metadata, aes(x = region, y = Toxoplasma_gondii_., group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Toxoplasma_gondii",
-    x = "Region",
-    y = "% of Eukaryotic reads"
-  )
-```
-No toxacaris detected with kraken
-
-Trichinella
-```{r Trichinella summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Trichinella_.)
-# Range 0.005 - 0.3 Med = 0.01, Mean = 0.01429
-means_Trichinella_region <- sample_metadata %>%
-  group_by(region) %>%
-  summarize(mean_Trichinella = mean(Trichinella_., na.rm = TRUE)) # Daneborg 0.0203 ; Ittoq 0.00831
-
-# Shapiro-Wilk test for normality (grouped by region)
-shapiro_results_Trichinella_R <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Trichinella_.)$p.value) # Results: p = 2.12e-11 Daneborg, p = 9.37e- 4 Ittoq
-
-# serological testing for only 5 dogs by P/R, all positive, so no way to compare
-
-# Wilcoxon Exact rank test
-wilcox_exact_results_Trichinella_R <- exactRankTests::wilcox.exact(Trichinella_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Trichinella_R) # Results: p = 0.0002889 significant difference in Trichinella between regions
-
-# Plot by region
-ggplot(sample_metadata, aes(x = region, y = Trichinella_., group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Trichinella",
-    x = "Region",
-    y = "% of Eukaryotic reads"
-  ) +
-    coord_cartesian(ylim = c(0, 0.03))
-```
-Taenia
-```{r Taenia summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Taenia_.)
-# Range 0 - 0.008
-# Med = 0, Mean = 0.0004343
-mean(subset(sample_metadata, Taenia_. != 0)$Taenia_.) #0.001145
-means_Taenia_region <- sample_metadata %>% 
-  filter(Taenia_. != 0) %>%
-  group_by(region) %>%
-  summarize(mean_Taenia = mean(Taenia_., na.rm = TRUE)) # Daneborg 0.00101 ; Ittoq 0.0017
-
-# Shapiro-Wilk test for normality (grouped by region)
-shapiro_results_Taenia_R <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Taenia_.)$p.value) #Results: p = 1.03e- 9 Daneborg, p = 1.45e-11 Ittoq
-
-# Wilcoxon Exact rank test
-wilcox_exact_results_Taenia_R <- sample_metadata %>%
-  filter(Taenia_. != 0) %>% # hash this line to calculate WITH negative dogs included
-  wilcox.exact(Taenia_. ~ region, data = .) # p-value = 0.4643, no significant difference in Taenia between regions (with zeros removed) ; p-value = 7.409e-06, sig difference when zeros included
-
-# PR results only found 1 dog with Taenia, therefore unable to group by their results. 
-
-# Plot by region
-ggplot(sample_metadata %>% filter(Taenia_. != 0), aes(x = region, y = Taenia_., group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Taenia",
-    x = "Region",
-    y = "% of Eukaryotic reads"
-  )
-```
-Uncinaria
-```{r Percent Uncinaria summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Uncinaria_.)
-# Range 0 - 0.02 
-# Med = 0, Mean = 0.0003843
-summary((subset(sample_metadata, Uncinaria_. != 0)$Uncinaria_.))
-means_Uncinaria_region <- sample_metadata %>% 
-  filter(Uncinaria_. != 0) %>%
-  group_by(region) %>%
-  summarize(mean_Uncinaria = mean(Uncinaria_., na.rm = TRUE)) # Daneborg 0.0012 ; Ittoq 0.000072
-
-# Shapiro-Wilk test for normality
-shapiro_results_Uncinaria <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Uncinaria_.)$p.value) # Results: p = 1.71e-11 Daneborg, p =  3.81e-10 Ittoq
-
-# Wilcoxon Exact rank test
-wilcox_exact_results_Uncinaria_R <- sample_metadata %>%
-  filter(Uncinaria_. != 0) %>% # hash this line to calculate WITH negative dogs included
-  wilcox.exact(Uncinaria_. ~ region, data = .) # p = 0.1303, NO significance when zeros are excluded ; p =0.0001526 # THEREFORE YES sig difference between regions (with zeros included)
-
-# Plot
-ggplot(sample_metadata, aes(x = region, y = Uncinaria_., group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Uncinaria",
-    x = "Region",
-    y = "% of Euk reads"
-  ) +
-      coord_cartesian(ylim = c(0, 0.00025))
-```
-Echinococcus
-```{r Percent Echinococcus summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Echinococcus_.) # Range 0.003 - 0.08  Med = 0.00850, Mean = 0.01167
-means_Echinococcus_region <- sample_metadata %>% 
-  filter(Echinococcus_. != 0) %>%
-  group_by(region) %>%
-  summarize(mean_Echinococcus = mean(Echinococcus_., na.rm = TRUE)) # Daneborg 0.013 ; Ittoq 0.010
-
-# Shapiro-Wilk test for normality
-shapiro_results_Echinococcus <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Echinococcus_.)$p.value) # Results: p = 0.00000000897 Daneborg, p =  0.00000784 Ittoq
-
-# Wilcoxon Exact rank test
-wilcox_exact_results_Echinococcus <- exactRankTests::wilcox.exact(Echinococcus_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Echinococcus) # Results: p =0.312 THEREFORE no sig difference between regions
-
-# Plot
-ggplot(sample_metadata, aes(x = region, y = Echinococcus_., group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Echinococcus",
-    x = "Region",
-    y = "% of Euk reads"
-  )
-```
-Cestoda
-```{r Percent Cestoda summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Cestoda_.) # Range 0.06 - 0.9  Med = 0.1, Mean = 0.1129
-
-# Shapiro-Wilk test for normality
-shapiro_results_Cestoda <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Cestoda_.)$p.value) # Results: p = 3.39e-11 Daneborg, p =  1.03e- 9 Ittoq
-
-# Wilcoxon Exact rank test
-wilcox_exact_results_Cestoda <- exactRankTests::wilcox.exact(Cestoda_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Cestoda) # Results: p =0.04305  sig difference between regions
-```
-Nematoda
-```{r Percent Nematoda summary, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-summary(sample_metadata$Nematoda_.) # Range   0.02 - 0.4  Med = 0.3, Mean = 0.259
-
-# Shapiro-Wilk test for normality
-shapiro_results_Nematoda <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Nematoda_.)$p.value) # Results: p = 0.00000112 Daneborg, p =   0.00000262 Ittoq
-
-# Wilcoxon Exact rank test
-wilcox_exact_results_Nematoda <- exactRankTests::wilcox.exact(Nematoda_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Nematoda) # Results: p =0.3481 no sig difference between regions
-```
-# Viruses
-Viral overall
-```{r Virus}
-summary(sample_metadata$Virus_.) # Range 0.3-4.0 % reads mapped to Virus Med = 0.07%, Mean = 0.225
-
-# Shapiro-Wilk test for normality
-shapiro_results_Virus <- sample_metadata %>%
-  group_by(region) %>%
-  summarise(shapiro_p_value = shapiro.test(Virus_.)$p.value) # Results: p = 0.000237 Daneborg, p = 0.00000000206 Ittoq
-
-# Wilcoxon Exact rank test
-library(exactRankTests)
-wilcox_exact_results_Virus <- exactRankTests::wilcox.exact(Virus_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Virus) # Results: p = 0.002321 YES sig diff in % Virus reads between regions
-
-# Plot
-ggplot(sample_metadata, aes(x = region, y = Virus_., group = region, color = region)) +
-  geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-  geom_jitter(width = 0.1, show.legend = TRUE) +
-  theme_minimal() +
-  theme(
-    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.border = element_blank()
-  ) +
-  labs(
-    title = "Virus",
-    x = "Region",
-    y = "% of unmapped reads"
-  ) + coord_cartesian(ylim = c(0, 1) )
-```
-```{r Parvo Adeno Pap}
-# Parvo
-library(exactRankTests)
-summary(sample_metadata$PARVO_Parvoviridae_.)
-wilcox_exact_results_Parvo <- exactRankTests::wilcox.exact(sample_metadata$PARVO_Parvoviridae_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Parvo) # Results: p = 7.547e-09 sig diff in % Viral reads mapped to Parvo between regions
-means_Parvoviridae_region <- sample_metadata %>% 
-  filter(PARVO_Parvoviridae_. != 0) %>%
-  group_by(region) %>%
-  summarize(mean_PARVO_Parvoviridae_. = mean(PARVO_Parvoviridae_., na.rm = TRUE)) # Daneborg 0.42 ; Ittoq 0.41 (without zeros) / Daneborg 0.41 ; Ittoq 0.38 (with zeros)
-
-# Adenovirus
-library(exactRankTests)
-wilcox_exact_results_Adeno <- exactRankTests::wilcox.exact(sample_metadata$ADENO_Adenoviridae_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Adeno) # Results: p = 0.0001022  sig diff in % Viral reads mapped to Adeno between regions
-means_Adeno_region <- sample_metadata %>% 
-  filter(ADENO_Adenoviridae_. != 0) %>% # hash out to calculate with zeros
-  group_by(region) %>%
-  summarize(mean_ADENO_Adenoviridae_. = mean(ADENO_Adenoviridae_., na.rm = TRUE)) # Daneborg 0.012 ; Ittoq 0.082 (without zeros) / Daneborg 0.0081 , 0.076 (with zeros)
-
-#Papilloma
-library(exactRankTests)
-wilcox_exact_results_Pap <- exactRankTests::wilcox.exact(sample_metadata$PAP_Papillomaviridae_. ~ region, data = sample_metadata)
-print(wilcox_exact_results_Pap) # Results: p = 8.691e-05 sig diff in % Viral reads mapped to Pap between regions
-means_Adeno_region <- sample_metadata %>% 
-  filter(PAP_Papillomaviridae_. != 0) %>% # hash out to calculate with zeros
-  group_by(region) %>%
-  summarize(mean_PAP_Papillomaviridae_. = mean(PAP_Papillomaviridae_., na.rm = TRUE)) # Daneborg 0.02 , Ittoq 0.21 (without zeros) / values do not change with zeros added
-```
 ## Fishers Exact testing:
 ```{r inferred species}
 inferred_species <- read.csv("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/inferred_species.csv") %>% as.data.frame()
