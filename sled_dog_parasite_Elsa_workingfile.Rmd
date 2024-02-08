@@ -217,7 +217,7 @@ genome_metadata %>%
 # 3 MAG catalogue
 
 ```{r list_phyla, echo=FALSE, warning=FALSE}
-ehi_phylum_colors <- read.table("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/ehi_phylum_colors.tsv",sep="\t",header=T,comment.char = "")
+ehi_phylum_colors <- read.table("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/ehi_phylum_colors copy.tsv",sep="\t",header=T,comment.char = "")
 
 # Arrange colors alphabetically
 colors_alphabetic <- ehi_phylum_colors %>%
@@ -1037,6 +1037,15 @@ for(i in colNames){
 print(plt)
 }
 ```
+```{r}
+merged_element <- significant_elements %>%
+  merge(., element_gift_filt_means, by = "Function")
+
+# library("writexl")
+# write_xlsx(merged_element, "/Users/elsa/Desktop/THESIS/sled_dog_metagenomics\\elements.xlsx")
+```
+
+
 ### Community functions differences
 
 ```{r comunity_func, comment="", echo=FALSE, message=FALSE, warning=FALSE}
@@ -1881,9 +1890,16 @@ ancombc_rand_table_genus <- ancom_rand_output_genus$res %>%
   dplyr::arrange(p_regionIttoqqortoormiit) %>%
   merge(., tax, by="genus")
 
+colors_alphabetic <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", ""))  %>%
+  dplyr::right_join(tax, by=join_by(phylum == phylum)) %>%
+  dplyr::select(phylum, colors) %>%
+  mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
+	unique() %>%
+	dplyr::arrange(phylum)
+
 tax_table <- as.data.frame(unique(ancombc_rand_table_genus$phylum))
 colnames(tax_table)[1] <- "phylum"
-tax_color <- merge(tax_table, ehi_phylum_colors, by="phylum")%>%
+tax_color <- merge(tax_table, colors_alphabetic, by="phylum")%>%
 	dplyr::arrange(phylum) %>%
 	dplyr::select(colors) %>%
 	pull()
@@ -1954,6 +1970,17 @@ LinDA_table <- merge(LinDA_table, tax[, c("asv", "phylum", "genus")], by = "asv"
 LinDA_table_filt <- LinDA_table %>%
   dplyr::select(asv, phylum, genus, lfcSE, padj, log2FoldChange) %>%
   filter(padj < 0.05)
+
+phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
+  dplyr::right_join(LinDA_table_filt, by=join_by(phylum == phylum)) %>%
+    arrange(match(asv,tree$tip.label)) %>%
+    dplyr::select(phylum, colors) %>%
+    mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
+    unique() %>%
+    arrange(phylum) %>%
+    dplyr::select(colors) %>%
+    pull()
 
 ggplot(LinDA_table_filt, aes(x=forcats::fct_rev(asv), y=log2FoldChange, color=phylum)) + 
   geom_point(size=4) + 
@@ -2174,11 +2201,112 @@ genome_counts_filtered.sig %>%
       guides(col=guide_legend("Phylum"))
 
 ```
+# Merged DA
+```{r merge DA results}
+# Wilcoxon
+Wilcoxon_genome <- significant_genome %>%
+  dplyr::select(., Genome, p_adjust) %>%
+  dplyr::rename(
+    genome = Genome,
+    padj_WILCOX = p_adjust,
+    )
+# DESeq
+DESeq_genome <- sigtab_diagdds_with_tax %>%
+  dplyr::select(., genome, padj, log2FoldChange) %>%
+  dplyr::rename(
+    padj_DESEQ = padj,
+    LogFold_DESEQ = log2FoldChange,
+    )
+# ANCOMBC
+ANCOMBC_genome <- ancombc_rand_table %>%
+  dplyr::select(., genome, p_regionIttoqqortoormiit, lfc_regionIttoqqortoormiit) %>%
+  dplyr::rename(
+    padj_ANCOMBC = p_regionIttoqqortoormiit,
+    LogFold_ANCOMBC = lfc_regionIttoqqortoormiit,
+    )
+# LinDA
+LinDA_genome <- LinDA_table_filt  %>%
+  dplyr::select(., asv, padj, log2FoldChange)  %>%
+  dplyr::rename(
+    genome = asv,
+    padj_LINDA = padj,
+    LogFold_LINDA = log2FoldChange,
+    )
+#ALDEx
+ALDEx_genome <- genome_counts_filtered.padj %>%
+  dplyr::select(., genome, wi.eBH, effect)  %>%
+  dplyr::rename(
+    padj_ALDEX = wi.eBH,
+    effect_ALDEX = effect,
+    )
+#Merge
+DA_results_list <- list(Wilcoxon_genome, DESeq_genome, ANCOMBC_genome, LinDA_genome, ALDEx_genome)
+DA_results<- Reduce(function(x, y) merge(x, y, all=TRUE), DA_results_list) 
+DA_results <- dplyr::left_join(DA_results, genome_metadata, by = "genome")
+```
+```{r UpSet DA}
+library(UpSetR)
+
+table_upset_DA <- DA_results  %>%
+  dplyr::select(., genome, padj_WILCOX, padj_DESEQ, padj_ANCOMBC, padj_LINDA, padj_ALDEX) %>%
+  dplyr::rename(
+    Wilcoxon = padj_WILCOX,
+    DESeq2 = padj_DESEQ, 
+    ANCOMBC = padj_ANCOMBC,
+    LinDA = padj_LINDA,
+    ALDEx = padj_ALDEX
+   ) %>%
+  column_to_rownames(var="genome")  %>%
+  {.[is.na(.)] <- 0; .}
+
+table_upset_DA_binary <- ifelse(table_upset_DA > 0, 1, 0) %>% as.data.frame()
+  
+methodcolors=c('#c4d7d1','#408892','#c04062','#6b3a59','#e08683')
+
+#pdf("figures/MAG_intersection.pdf",width=8,height=6, onefile=F)
+upset(table_upset_DA_binary,
+      sets = rev(c("Wilcoxon","DESeq2","ANCOMBC","LinDA","ALDEx")),
+      sets.bar.color= rev(methodcolors),
+      mb.ratio = c(0.55, 0.45), order.by = "freq")
+#dev.off()
+```
+```{r filtered DA results}
+# Filtered DA Results (only MAGs found to be DA by 2+ methods)
+filtered_DA_results <- DA_results %>%
+  dplyr::select(., genome, padj_WILCOX, padj_DESEQ, padj_ANCOMBC, padj_LINDA, padj_ALDEX) %>%
+  column_to_rownames(var="genome")  %>%
+  {.[is.na(.)] <- 0; .}
+filtered_DA_results <- filtered_DA_results %>%
+  filter(rowSums(. > 0) >= 2) 
+# Merge annotations
+filtered_DA_results <- filtered_DA_results %>%
+  rownames_to_column(var="genome")
+
+filtered_DA_results <- subset(DA_results, genome %in% filtered_DA_results$genome)
+
+filtered_DA_results <- filtered_DA_results %>%
+  mutate(enrichment = ifelse(LogFold_ANCOMBC > 0 | LogFold_LINDA > 0 | LogFold_DESEQ > 0, "Ittoqqortoormiit",
+                      ifelse(LogFold_LINDA < 0 | LogFold_DESEQ < 0, "Daneborg", NA)))
+
+#library("writexl")
+#write_xlsx(filtered_DA_results, "/Users/elsa/Desktop/THESIS/sled_dog_metagenomics\\DA_merged.xlsx")
+```
+
+```
+***Mags from DA with species-level annotation***
+```{r spe_DA, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+filtered_DA_results%>%
+	filter(species != "s__") # 109 DA MAGs WITH species-level annotation therefore 77 DA MAGs are w/o species level annotation
+```
+
 
 #Kraken
 ```{r kraken data}
 # read in kraken data
 kraken_data <- read.csv("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/kraken_data.csv")
+
+kraken_subset <- kraken_data[, c("Eukaryota_.","Cryptosporidium_.","Giardia_.","Sarcocystis_.","Toxoplasma_gondii_.","Trichinella_.","Uncinaria_.", "Echinococcus_.", "Taenia_.","Cestoda_.","Nematoda_.","Virus_.", "PARVO_Parvoviridae_.","PARVO_Bocaparvovirus_.","ADENO_Adenoviridae_.", "PAP_Papillomaviridae_.", "sample", "region")] # subset kraken_data to only include Parasites present in both regions
+
 colNames_kraken <- setdiff(names(kraken_subset), c("region", "sample"))
 ```
 
@@ -2204,8 +2332,6 @@ merged_means <- Reduce(function(x, y) merge(x, y, by = "region", all = TRUE), me
 ```
 
 ```{r wilcox0_kraken, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-kraken_subset <- kraken_data[, c("Eukaryota_.","Cryptosporidium_.","Giardia_.","Sarcocystis_.","Toxoplasma_gondii_.","Trichinella_.","Uncinaria_."               , "Echinococcus_.", "Taenia_.","Cestoda_.","Nematoda_.","Virus_.", "PARVO_Parvoviridae_.","PARVO_Bocaparvovirus_.","ADENO_Adenoviridae_.", "PAP_Papillomaviridae_.", "sample", "region")] # subset kraken_data to only include Parasites present in both regions
-
 wilcox_kraken <- kraken_subset %>%
     pivot_longer(-c(sample, region), names_to = "Parasite", values_to = "value") %>%
     group_by(Parasite) %>%
