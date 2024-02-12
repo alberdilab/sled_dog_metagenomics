@@ -337,6 +337,7 @@ genome_completeness <- genome_metadata %>%
                     plot.margin = unit(c(0, 0, 0, 0.50),"inches")) #add left-margin (top, right, bottom, left)
 
 #Render composite figure
+library(gridExtra)
 grid.arrange(grobs = list(genome_completeness,genome_biplot,genome_contamination),
         layout_matrix = rbind(c(1,1,1,1,1,1,1,1,1,1,1,4),
                               c(2,2,2,2,2,2,2,2,2,2,2,3),
@@ -2269,6 +2270,8 @@ upset(table_upset_DA_binary,
       sets.bar.color= rev(methodcolors),
       mb.ratio = c(0.55, 0.45), order.by = "freq")
 #dev.off()
+
+
 ```
 ```{r filtered DA results}
 # Filtered DA Results (only MAGs found to be DA by 2+ methods)
@@ -2292,16 +2295,15 @@ filtered_DA_results <- filtered_DA_results %>%
 #write_xlsx(filtered_DA_results, "/Users/elsa/Desktop/THESIS/sled_dog_metagenomics\\DA_merged.xlsx")
 ```
 
-```
 ***Mags from DA with species-level annotation***
-```{r spe_DA, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+
+```{r}
 filtered_DA_results%>%
 	filter(species != "s__") # 109 DA MAGs WITH species-level annotation therefore 77 DA MAGs are w/o species level annotation
 ```
 
-
 #Kraken
-```{r kraken data}
+```{r}
 # read in kraken data
 kraken_data <- read.csv("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/kraken_data.csv")
 
@@ -2312,7 +2314,6 @@ colNames_kraken <- setdiff(names(kraken_subset), c("region", "sample"))
 
 ```{r kraken means}
 column_names <-colNames_kraken
-
 means_list_kraken <- list()
 
 for (col_name in column_names) {
@@ -2327,9 +2328,28 @@ for (col_name in column_names) {
   cat("Mean for", col_name, ":\n")
   print(head(means_list_kraken[[col_name]]))
 }
-
 merged_means <- Reduce(function(x, y) merge(x, y, by = "region", all = TRUE), means_list_kraken)
 ```
+```{r}
+sds_list_kraken <- list()
+
+for (col_name in column_names) {
+  sd_data <- kraken_data %>%
+    group_by(region) %>%
+    summarise(!!paste0("sd_", col_name) := sd(!!sym(col_name), na.rm = TRUE))
+  
+  sds_list_kraken[[col_name]] <- sd_data
+}
+
+for (col_name in column_names) {
+  cat("Standard Deviation for", col_name, ":\n")
+  print(head(sds_list_kraken[[col_name]]))
+}
+
+merged_sds <- Reduce(function(x, y) merge(x, y, by = "region", all = TRUE), sds_list_kraken)
+
+```
+
 
 ```{r wilcox0_kraken, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 wilcox_kraken <- kraken_subset %>%
