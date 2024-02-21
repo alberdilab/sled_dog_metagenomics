@@ -1,5 +1,5 @@
 ---
-title: "Elsa-analysis1"
+title: "Elsa-Brenner-Masters-Thesis-Analysis"
 output: html_document
 date: "`r Sys.Date()`"
 ---
@@ -7,10 +7,11 @@ date: "`r Sys.Date()`"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-# 1. Set up working Environment
+# 1 Set up working Environment
 
-## 1.1 Load required libraries:
-```{r libraries, echo=FALSE, message=FALSE, warning=FALSE}
+## 1.1 Load required libraries and set working directory
+
+```{r all_libraries, echo=FALSE, message=FALSE, warning=FALSE}
 ## Load required libraries
 library(ggnewscale)
 library(ggtree)
@@ -59,14 +60,14 @@ library(janitor)
 library(ggh4x)
 library(dplyr)
 ```
-```{r loaddata, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r loaddata, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 workingdir="/Users/elsa/Desktop/THESIS/sled_dog_metagenomics"
 setwd(workingdir)
 load("resources/data/data.Rdata")
 ```
 # 2 Data pre-processing
 
-```{r summary, echo=FALSE, message=FALSE, warning=FALSE}
+```{r summary, echo=TRUE, message=FALSE, warning=FALSE}
 read_counts_row <- column_to_rownames(read_counts, "genome")
 nsamples <- ncol(read_counts_row) # define number of samples, by reading from the counts table
 metagenomic_bases <- sum(sample_metadata$metagenomic_bases)
@@ -191,6 +192,7 @@ cat(nonspecies) #244 MAGs lacking species level annotation
 ```
 
 **Percentage of MAGs without species-level annotation**
+
 ```{r sp_percet, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 perct <- nonspecies*100/nmags
 cat(perct) # 43.96% of MAGs with no species level annotation
@@ -205,9 +207,10 @@ genome_metadata %>%
   pull() %>%
     length()  # 12 Phyla
 ```
+
 **Number of genera**
 
-```{r phyla, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r genera, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 genome_metadata %>%
   dplyr::select(genus) %>%
   unique() %>%
@@ -215,6 +218,8 @@ genome_metadata %>%
     length()  # 135 genera
 ```
 # 3 MAG catalogue
+
+## 3.1 MAG tree
 
 ```{r list_phyla, echo=FALSE, warning=FALSE}
 ehi_phylum_colors <- read.table("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/ehi_phylum_colors copy.tsv",sep="\t",header=T,comment.char = "")
@@ -230,7 +235,7 @@ colors_alphabetic <- ehi_phylum_colors %>%
     dplyr::select(colors) %>%
     pull()
 ```
-```{r circular_tree_prep, echo=FALSE, warning=FALSE, comments="", message=FALSE, results="hide"}
+```{r circular_tree_prep, echo=TRUE, warning=FALSE, comments="", message=FALSE, results="hide"}
 heatmap <- ehi_phylum_colors %>%
   dplyr::right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
 	arrange(match(genome, tree$tip.label)) %>%
@@ -277,8 +282,12 @@ circular_tree <-  circular_tree +
 #Plot circular tree
 circular_tree
 ```
+
+  
 ## 3.2 MAG quality
+\
 Overview of the taxonomy and genome characteristics of the MAGs.\
+\
 **Completeness:** completeness of the MAG according to CheckM assessment.\
 **Contamination:** contamination or redundancy of the MAG according to CheckM assessment.\
 **Size:** size of the MAG in megabases (MB, one million nucleotide bases).
@@ -353,9 +362,8 @@ grid.arrange(grobs = list(genome_completeness,genome_biplot,genome_contamination
                               c(2,2,2,2,2,2,2,2,2,2,2,3)))
 ```
 
-#################################### ## 3.3 Functional attributes of MAGs ## ####################################
-
-## 2.3 Sequencing depth assessment
+  
+## 3.3 Sequencing depth assessment
 
 ```{r data_fraction, warning=FALSE, echo=FALSE, fig.height=5}
 # Calculate sequence fractions
@@ -384,6 +392,7 @@ sequence_fractions_pivot <- sequence_fractions %>%
 
 sequence_fractions_meta <- merge(sequence_fractions_pivot, sample_metadata, by="sample")
 ```
+
 ```{r data_fraction_barplot, echo=FALSE, warning=FALSE}
 ggplot(sequence_fractions_meta, aes(x = sample, y = value, fill=fraction)) +
   geom_bar(position="stack", stat = "identity") +
@@ -405,10 +414,10 @@ ggplot(sequence_fractions_meta, aes(x = sample, y = value, fill=fraction)) +
         axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black"),
         legend.position="bottom",
         legend.title=element_blank())
-
 ```
 
-## 4.2 Estimated vs. mapped prokaryotic fraction
+  
+## 3.4 Estimated vs. mapped prokaryotic fraction
 ```{r est_pro, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 singlem_table <- sequence_fractions %>%
     mutate(mags_proportion = round((mags_bases / (mags_bases + unmapped_bases))*100,2)) %>%
@@ -434,7 +443,8 @@ singlem_table %>%
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size=6),legend.position = "right")
 ```
 
-### 4.3 Additional sequencing needed
+  
+### 3.5 Additional sequencing needed
 
 ```{r seq_needs, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 # Define the aimed GBs for host and mapped metagenomic data
@@ -475,7 +485,10 @@ sequence_fractions_required %>%
         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size=6),legend.position = "bottom")
 ```
 
-```{r barplot1, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+  
+## 3.6 Relative abundance
+
+```{r barplot1, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 genome_counts %>%
   mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS nornalisation
   pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
@@ -498,15 +511,18 @@ genome_counts %>%
           axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black")) +
    labs(fill="Phylum")
 ```
-# 5 Alpha diversity calculations
+
+  
+# 4 Alpha diversity calculations
 
 Diversity estimations for each sample.\
+\
 **Richness:** Number of MAGs per sample (after applying coverage filter).\
 **Neutral diversity:** Hill number of q=1 (Shannon diversity), a diversity metric that accounts for richness and eveness (relative abundances) of the MAGs.\
 **Phylogenetic diversity:** Phylogenetic Hill number of q=1, a diversity metric that accounts for richness and eveness (relative abundances), as well as phylogenetic relationships among MAGs.\
 **Functional diversity:** Functional Hill number of q=1, a diversity metric that accounts for richness and eveness (relative abundances), as well as functional dissimilarities among MAGs.\
 
-```{r libraries, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r div_libraries, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 library(hilldiv2) 
 library(janitor)
 library(ggh4x)
@@ -518,11 +534,10 @@ library(vegan)
 library(dplyr)
 library(tidyr)
 library(distillR)
-
 ```
 
-## Alpha diversity means by sample type
-```{r alpha_div, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+## 4.1 Alpha diversity means by sample type
+```{r alpha_div, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 #Calculate Hill numbers
 richness <- genome_counts %>% 
             column_to_rownames(var="genome") %>% 
@@ -603,7 +618,7 @@ cbind(richness_mean, neutral_mean[, 2:3], phylogenetic_mean[, 2:3],
   knitr::kable(.,digits = c(3,3))
 ```
 
-## Plot diversities
+## 4.2 Plot alpha diversities
 ```{r alpha_div_plot1, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 alpha_div_pivot <- richness %>%
   dplyr::full_join(neutral,by=join_by(sample==sample)) %>%
@@ -626,13 +641,16 @@ alpha_div_pivot %>%
 
 ```
 
-```{r alpha_div_rich, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-alpha_colors <- c("#e5bd5b", "#6b7398", "#76b183", "#d57d2c", "#2a2d26", "#f9d4cc", "#3c634e", "#ea68c3")
+```{r alpha_div_rich, comment="", echo=TRUE, message=FALSE, warning=FALSE}
+alpha_colors <- c("#e5bd5b", "#6b7398")
 group_n <- alpha_div %>%
   dplyr::select(region) %>%
   pull() %>%
   unique() %>%
   length()
+
+# all alpha diversity plots follow the same structure, thus only the script for neutral alpha diversity is shown. 
+
 plot1 <- alpha_div %>%
   ggplot(aes(x = region, y = richness, group = region, color = region, fill = region)) +
   geom_jitter(width = 0.05, size = 1.5, show.legend = FALSE) +
@@ -718,12 +736,12 @@ plot4 <- alpha_div%>%
 ```
 ```{r div_plot_together, comment="", echo=FALSE, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
 # Combined plot
-grid.arrange(arrangeGrob(plot1,plot2,#plot3,
+grid.arrange(arrangeGrob(plot1,plot2,plot3,
                          plot4, ncol = 2)) 
 ```
 
-# Beta diversity
-```{r beta_div, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide', eval=FALSE}
+# 5 Beta diversity
+```{r beta_div, comment="", echo=TRUE, message=FALSE, warning=FALSE, results='hide', eval=FALSE}
 beta_q0 <- genome_counts%>%
   column_to_rownames(., "genome")%>%
   hillpair(., q = 0)
@@ -746,7 +764,7 @@ save(beta_q0,beta_q1n, beta_q1p, beta_div_func, file = "resources/data/beta_div.
 load("resources/data/beta_div.Rdata")
 ```
 
-```{r betan, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+```{r betan, comment="", echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 beta_metric <- beta_q1n$S
 
 beta_q1n_nmds <- beta_metric %>%
@@ -756,13 +774,14 @@ beta_q1n_nmds <- beta_metric %>%
   dplyr::left_join(sample_metadata, by = join_by(sample == sample))
 
 group_n <- length(unique(beta_q1n_nmds$region))
-beta_colors <- c("#e5bd5b", "#6b7398", "#76b183", "#d57d2c", "#2a2d26", "#f9d4cc", "#3c634e", "#ea68c3")
+beta_colors <- c("#e5bd5b", "#6b7398")
 ```
 
-## Neutral beta diversity
-```{r beta_div_neutral, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+## 5.1 Neutral beta diversity
+```{r beta_div_neutral, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 
-# pdf(paste(workingdir,"/x.pdf",sep=""),width=14, height=9)
+# all beta diversity plots follow the same format, thus only the script for neutral beta diversity is shown. 
+
 q1n_nmds <- beta_q1n_nmds %>%
   group_by(region) %>%
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
@@ -786,8 +805,6 @@ ggplot(q1n_nmds, aes(x = NMDS1, y = NMDS2, color = region)) +
     legend.title = element_text(size = 18),
     legend.position = "right", legend.box = "vertical"
   )
-#+ geom_text(aes(label = Sample), size=8)
-# dev.off()
 ```
 
 ***Homogeneity of variance***
@@ -799,7 +816,7 @@ permutest(ps.disper.neutral, pairwise = TRUE)
 
 ***Permanova***
 ```{r adonisbeta2, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-#### Adonis
+# Adonis
 metarow <- column_to_rownames(sample_metadata, "sample")
 
 adonis2(beta_metric ~ region+sex, data = metarow[labels(beta_metric), ], permutations = 999) %>%
@@ -820,7 +837,7 @@ group_n <- length(unique(beta_q1p_nmds$region))
 beta_colors <- c("#e5bd5b", "#6b7398", "#76b183", "#d57d2c", "#2a2d26", "#f9d4cc", "#3c634e", "#ea68c3")
 ```
 
-## Phylogenetic beta diversity
+## 5.2 Phylogenetic beta diversity
 ```{r  beta_div_phylo, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 # pdf(paste(workingdir,"/betaB692_caecum.pdf",sep=""),width=14, height=9)
 q1p_nmds <- beta_q1p_nmds %>%
@@ -866,6 +883,7 @@ adonis2(beta_p_metric ~ region+sex, data = metarow[labels(beta_p_metric), ], per
   knitr::kable(., digits = c(0,3,3,3,3))
 ```
 
+## 5.3 Functional beta diversity
 ```{r betaf, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 beta_f_metric <- beta_div_func$S
 
@@ -876,12 +894,10 @@ beta_f_nmds <- beta_f_metric %>%
   dplyr::left_join(sample_metadata, by = join_by(sample == sample))
 
 group_n <- length(unique(beta_f_nmds$region))
-beta_colors <- c("#e5bd5b", "#6b7398", "#76b183", "#d57d2c", "#2a2d26", "#f9d4cc", "#3c634e", "#ea68c3")
+beta_colors <- c("#e5bd5b", "#6b7398")
 ```
 
-## Functional beta diversity
 ```{r  beta_div_func, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-
 # pdf(paste(workingdir,"/x.pdf",sep=""),width=14, height=9)
 f_nmds <- beta_f_nmds %>%
   group_by(region) %>%
@@ -927,14 +943,14 @@ adonis2(beta_f_metric ~ region, data = metarow[labels(beta_f_metric), ], permuta
   knitr::kable(., digits = c(0,3,3,3,3))
 ```
 
-# Functional diversity analysis 
+# 6 Functional capacity analysis 
 ```{r filter_annotations, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 #### read table ####
 filtered_df <- read.table("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/DMB0032_annotations.csv", sep="")
 ```
 
-## Functional GIFT distillation:
-```{r gifts, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
+## 6.1 Functional GIFT distillation:
+```{r gifts, comment="", echo=TRUE, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
 #Aggregate bundle-level GIFTs into the compound level
 GIFTs_elements <- to.elements(genome_gifts,GIFT_db)
 GIFTs_elements_filtered <- GIFTs_elements[rownames(GIFTs_elements) %in% genome_counts_filt$genome,]
@@ -957,15 +973,15 @@ GIFTs_functions_community <- to.community(GIFTs_functions,genome_counts_row,GIFT
 GIFTs_domains_community <- to.community(GIFTs_domains,genome_counts_row,GIFT_db)
 ```
 
-### Community elements differences
-```{r comunity_elem, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+### 6.2 Community elements differences
+```{r comunity_elem, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 element_gift <- GIFTs_elements_community %>% 
   as.data.frame() %>% 
   rownames_to_column(., "sample") %>% 
   merge(., sample_metadata[c(1,4)], by="sample")
 ```
 
-```{r commun_wilcox_elem, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r commun_wilcox_elem, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 uniqueGIFT_db<- unique(GIFT_db[c(2,4,5,6)]) %>% unite("Function",Function:Element, sep= "_", remove=FALSE)
 
 significant_elements <- element_gift %>%
@@ -1024,7 +1040,7 @@ element_gift_names <- element_gift_filt%>%
   dplyr::left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))
 
 
-colNames <- names(element_gift_names)[2:87] # change to change number of plotted elements
+colNames <- names(element_gift_names)[2:4] # change to change number of plotted elements
 for(i in colNames){
   plt <- ggplot(element_gift_names, aes(x=region, y=.data[[i]], color = region)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
@@ -1038,7 +1054,11 @@ for(i in colNames){
 print(plt)
 }
 ```
-```{r}
+
+  
+only three plots are shown to illustrate the plotting function. 
+
+```{r sig_elements, echo=FALSE, message=FALSE, warning=FALSE}
 merged_element <- significant_elements %>%
   merge(., element_gift_filt_means, by = "Function")
 
@@ -1047,7 +1067,7 @@ merged_element <- significant_elements %>%
 ```
 
 
-### Community functions differences
+## 6.3 Community functions differences
 
 ```{r comunity_func, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 function_gift <- GIFTs_functions_community %>% 
@@ -1060,7 +1080,6 @@ function_gift <- GIFTs_functions_community %>%
 unique_funct_db<- GIFT_db[c(3,4,5)] %>% 
   distinct(Code_function, .keep_all = TRUE)
 
-
 significant_functional <- function_gift %>%
     pivot_longer(-c(sample,region), names_to = "trait", values_to = "value") %>%
     group_by(trait) %>%
@@ -1068,8 +1087,8 @@ significant_functional <- function_gift %>%
     mutate(p_adjust=p.adjust(p_value, method="BH")) %>%
     filter(p_adjust < 0.05)%>%
   dplyr::left_join(.,unique_funct_db[c(1,3)],by = join_by(trait == Code_function))
-
 ```
+
 ```{r  function_sig, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 function_gift_t <- function_gift  %>% 
   dplyr::select(-region)  %>% 
@@ -1097,7 +1116,8 @@ function_gift_filt %>%
   as.data.frame() %>%
   mutate_if(is.character, as.numeric)  %>%
   rownames_to_column(., "Code_function")  %>%
-  dplyr::left_join(.,unique_funct_db[c(1,3)],by = join_by(Code_function == Code_function))
+  dplyr::left_join(.,unique_funct_db[c(1,3)],by = join_by(Code_function == Code_function)) %>%
+  knitr::kable(., digits = c(0,3,3,3,3))
 ```
 ```{r function_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 function_gift_names <- function_gift_filt%>%
@@ -1118,7 +1138,7 @@ function_gift_names <- function_gift_filt%>%
   dplyr::left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))
 
 
-colNames <- names(function_gift_names)[2:13] # change to change number of plotted functions
+colNames <- names(function_gift_names)[2:4] # change to change number of plotted functions
 for(i in colNames){
   plt <- ggplot(function_gift_names, aes(x=region, y=.data[[i]], color = region)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
@@ -1133,7 +1153,11 @@ print(plt)
 }
 ```
 
-### Community domains differences
+  
+only 3 plots are shown to illustrate the plotting function. 
+
+### 6.4 Community domains differences
+
 ***No differences***
 ```{r comunity_dom, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 domain_gift <- GIFTs_domains_community %>% 
@@ -1153,7 +1177,9 @@ significant_domain <- domain_gift %>%
     mutate(p_adjust=p.adjust(p_value, method="BH"))
 ```
 
-## Functional capacity of the MAGs
+## 6.5 Functional capacity of the MAGs
+\
+***element***
 ```{r GIFTs_elements, comment="", echo=FALSE, message=FALSE, warning=FALSE, fig.dim = c(20, 20)}
 GIFTs_elements %>%
   reshape2::melt() %>%
@@ -1168,6 +1194,8 @@ GIFTs_elements %>%
   theme_grey(base_size=8)+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
 ```
+\
+***function***
 ```{r hierachical_clustering, comment="", echo=FALSE, message=FALSE, warning=FALSE, fig.dim = c(20, 20)}
 col <- colorRampPalette(brewer.pal(7, "YlGnBu"))(256)
 heatmap(GIFTs_functions_community, scale = "none", col=col, Colv=NA,
@@ -1176,9 +1204,9 @@ heatmap(GIFTs_functions_community, scale = "none", col=col, Colv=NA,
         keysize=0.75, key.par = list(cex=0.9),srtCol = 45)
 ```
 
-# DA
-## all run after removing structural zeros
-```{r remove structural zeros}
+# 7 Differential abundance analysis
+## 7.1 Remove structural zeros
+```{r remove structural zeros, echo=TRUE, message=FALSE, warning=FALSE}
 # remove MAGs only present in one region
 Daneborg_samples <- sample_metadata %>% 
                     filter(region == "Daneborg") %>% 
@@ -1205,19 +1233,20 @@ structural_zeros <- genome_counts %>%
    dplyr::select(genome, present, average) %>%
    dplyr::left_join(genome_metadata, by=join_by(genome==genome)) %>%
    arrange(present,-average)
-
-#EHI standard colors
+```
+```{r plot structural zeros, echo=FALSE, message=FALSE, warning=FALSE}
+#Get phylum colors from the EHI standard
 phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
-  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", ""))%>%
-  dplyr::right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
+  dplyr::right_join(structural_zeros, by=join_by(phylum == phylum)) %>%
     arrange(match(genome, tree$tip.label)) %>%
     dplyr::select(phylum, colors) %>%
+    mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
     unique() %>%
     arrange(phylum) %>%
     dplyr::select(colors) %>%
     pull()
-```
-```{r plot structural zeros}
+
 structural_zeros %>%
     mutate(average = ifelse(present == "Ittoqqortoormiit", average * -1, average)) %>% #convert Ittoqqortoormiit genome counts to negative
     ggplot(., aes(x=average, y=forcats::fct_rev(phylum), color=phylum)) +
@@ -1225,14 +1254,17 @@ structural_zeros %>%
       geom_vline(xintercept=0) + 
       xlim(-max(structural_zeros$average)-3,max(structural_zeros$average)+3) +
       scale_color_manual(values=phylum_colors) +
-      geom_text(aes(-max(structural_zeros$average)+5, 1), label = "Only present\nin Ittoqqortoormiit", color="#666666") +
-      geom_text(aes(max(structural_zeros$average)-5, 1), label = "Only present\nin Daneborg", color="#666666") +
+      geom_text(aes(-max(structural_zeros$average)+5, 1), label = "IT", color="#666666") +
+      geom_text(aes(max(structural_zeros$average)-5, 1), label = "DB", color="#666666") +
      theme(legend.position='none',
           panel.background = element_blank(),
           axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"))+
       labs(y="Genus",x="Genome counts") + 
       guides(col=guide_legend("Phylum"))
 ```
+
+\
+***Create phyloseq object (without structural zeros)***
 ```{r physeq object with normalized counts, structural zeros removed}
 #phyloseq object without structural zeros
 
@@ -1264,7 +1296,7 @@ phylo_tree = phyloseq::phy_tree(tree)
 genome_data <- phyloseq(phylo_counts, phylo_taxonomy, phylo_samples, phylo_tree)
 ```
 
-```{r clr_phylo, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r clr_phylo, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 #clr transformation
 physeq_clr <- microbiome::transform(genome_data, 'clr')
 
@@ -1276,10 +1308,8 @@ metadata_crl <- metadata_crl[match(rownames(count_crl_t),metadata_crl$sample),]
 design <- metadata_crl[, c("sample", "region")]
 ```
 
-
-## MAGs in different between location and shared between location
-
-```{r upset, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+### 7.1.2 MAGs in different between location and shared between locations
+```{r upset, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 ## Upset visualization: MAGs in different locations and shared among locations
 library(UpSetR)
 locationcolors=c('#c4d7d1','#408892')
@@ -1301,7 +1331,6 @@ upset(as.data.frame(table_upset_analysis_binary),
   sets.bar.color= rev(locationcolors),
   mb.ratio = c(0.55, 0.45), order.by = "freq")
 #dev.off()
-
 ```
 ***Total number only present in Ittoqqortoormiit and absent in Daneborg***
 ```{r speno_total_ittoq, comment="", echo=FALSE, message=FALSE, warning=FALSE}
@@ -1313,13 +1342,13 @@ total_absent # 88 Ittoqqortoormiit unique MAGs
 ```
 
 ***Mags only present in Ittoqqortoormiit with species-level annotation***
-```{r spe_ittoq, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r spe_ittoq, comment="", echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 no_daneborg%>%
 	filter(species != "s__") # 45 Ittoqqortoormiit unique MAGs WITH species-level annotation
 ```
 
 ***Number of MAGs present only in Ittoqqortoormiit without species-level annotation***
-```{r speno_perc_ittoq, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r speno_perc_ittoq, comment="", echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 new_species_absent <- no_daneborg %>%
 	filter(species == "s__") %>%
 	nrow()
@@ -1338,13 +1367,14 @@ cat(total_absent_Ittoqqortoormiit) # 37 MAGs only in Daneborg
 ```
 
 ***Mags only present in Daneborg with species-level annotation***
-```{r spe_daneb, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+
+```{r spe_daneb, comment="", echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 no_Ittoqqortoormiit%>%
 	filter(species != "s__") # 16 Daneborg unique MAGs WITH species-level annotation
 ```
 
 ***Number of MAGs present only in Daneborg without species-level annotation***
-```{r speno_perc_daneb, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r speno_perc_daneb, comment="", echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 new_species_Ittoqqortoormiit <- no_Ittoqqortoormiit %>%
 	filter(species == "s__") %>%
 	nrow()
@@ -1352,9 +1382,9 @@ no_Ittoqqortoormiit %>%
 	filter(species == "s__") %>% dplyr::select(c(1:6))
 cat(new_species_Ittoqqortoormiit*100/total_absent_Ittoqqortoormiit) # 21 Daneborg unique MAGs w/o species-level annotation
 ```
-### Phylum percentages
+## 7.2 Wilcoxon testing / (Mann Whitney U) 
 
-***Daneborg***
+***Daneborg phylum summary***
 ```{r phylum1, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 physeq_phylum <- microbiome::aggregate_taxa(genome_data, 'phylum')
 physeq_phylum_rel <-  microbiome::transform(physeq_phylum, "compositional")
@@ -1367,7 +1397,7 @@ colnames(summary.phylum1) <- c("Phylum","Mean", "SD")
 print(summary.phylum1[order(-summary.phylum1$Mean),], row.names = FALSE)
 ```
 
-***Ittoqqortoormiit***
+***Ittoqqortoormiit phylum summary***
 ```{r phylum2, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 physeq_phylum <- microbiome::aggregate_taxa(genome_data, 'phylum')
 physeq_phylum_rel <-  microbiome::transform(physeq_phylum, "compositional")
@@ -1380,11 +1410,12 @@ colnames(summary.phylum1) <- c("Phylum","Mean", "SD")
 print(summary.phylum1[order(-summary.phylum1$Mean),], row.names = FALSE)
 ```
 
-## Significantly different in taxonomy
-### Mann–Whitney U test (CLR data, without considering structural zeros)
-#### Genome level
-Ittoqqortoormiit
-```{r Ittoq summary for DA P, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+***Genome level***
+\
+both regional analyses are done in the same manner, thus only Ittoqqortoormiit is shown. 
+\
+**Ittoqqortoormiit**
+```{r Ittoq summary for DA P, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 physeq_ittoq <- subset_samples(physeq_clr, region == "Ittoqqortoormiit")
 physeq_ittoq <- prune_taxa(taxa_sums(physeq_ittoq)>0, physeq_ittoq)
 table.rel1_ittoq <- physeq_ittoq@otu_table
@@ -1392,10 +1423,10 @@ means.table.rel1_ittoq <- as.data.frame(rowMeans(table.rel1_ittoq))
 sd.table.rel1_ittoq <- as.data.frame(matrixStats::rowSds(table.rel1_ittoq, useNames = TRUE))
 summary.ittoq <- merge(means.table.rel1_ittoq, sd.table.rel1_ittoq, by="row.names")
 colnames(summary.ittoq) <- c("Genome","Mean", "SD")
-print(summary.ittoq[order(-summary.ittoq$Mean),], row.names = FALSE)
+head(summary.ittoq[order(-summary.ittoq$Mean),], row.names = FALSE)
 ```
 
-Daneborg
+**Daneborg**
 ```{r Daneborg summary for DA P, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 physeq_daneborg <- subset_samples(physeq_clr, region == "Daneborg")
 physeq_daneborg <- prune_taxa(taxa_sums(physeq_daneborg)>0, physeq_daneborg)
@@ -1404,14 +1435,14 @@ means.table.rel1_daneborg <- as.data.frame(rowMeans(table.rel1_daneborg))
 sd.table.rel1_daneborg <- as.data.frame(matrixStats::rowSds(table.rel1_daneborg, useNames = TRUE))
 summary.daneborg <- merge(means.table.rel1_daneborg, sd.table.rel1_daneborg, by="row.names")
 colnames(summary.daneborg) <- c("Genome","Mean", "SD")
-print(summary.daneborg[order(-summary.daneborg$Mean),], row.names = FALSE)
+head(summary.daneborg[order(-summary.daneborg$Mean),], row.names = FALSE)
 ```
 
 ***Genome***
-```{r}
+```{r physeq_mag, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 physeq_genome_filtered_clr <- physeq_clr
 ```
-```{r wilcox0_gen, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r wilcox0_mag, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 clr_t <- as.data.frame(t(as.matrix(physeq_clr@otu_table))) %>%
   rownames_to_column(., "sample")%>% 
   dplyr::left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))
@@ -1423,7 +1454,7 @@ significant_genome <- clr_t %>%
     filter(p_adjust < 0.05)
 significant_genome
 ```
-```{r wilcox0_gen_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r wilcox0_mag_plot, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 physeq_genome_filtered_rel <-  microbiome::transform(genome_data, "compositional")
 genome <- as.data.frame(t(as.matrix(physeq_genome_filtered_rel@otu_table)))
 significant_genome_table <- genome[, colnames(genome) %in% significant_genome$Genome] %>%
@@ -1431,7 +1462,7 @@ significant_genome_table <- genome[, colnames(genome) %in% significant_genome$Ge
   dplyr::left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))%>%
   dplyr::select(-sample)
 
-colNames <- names(significant_genome_table)[1:10] # change to change number of plotted MAGs
+colNames <- names(significant_genome_table)[1:3] # change to change number of plotted MAGs
 for(i in colNames){
   plt <- ggplot(significant_genome_table, aes(x=region, y=.data[[i]], color = region)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
@@ -1445,8 +1476,12 @@ for(i in colNames){
 print(plt)
 }
 ```
-***Genera***
-```{r}
+
+  
+only three plots are shown to illustrate the plotting function
+
+***Genera level***
+```{r physeq_genus, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 physeq_genome_filtered_genus <- microbiome::aggregate_taxa((physeq_clr), 'genus')
 ```
 ```{r wilcox0_gen, comment="", echo=FALSE, message=FALSE, warning=FALSE}
@@ -1472,7 +1507,7 @@ significant_genus_table <- genus[, colnames(genus) %in% significant_genus$Genus]
   dplyr::left_join(., sample_metadata[c(1,4)], by = join_by(sample == sample))%>%
   dplyr::select(-sample)
 
-colNames <- names(significant_genus_table)[1:5] # change to change number of plotted MAGs
+colNames <- names(significant_genus_table)[1:3] # change to change number of plotted MAGs
 for(i in colNames){
   plt <- ggplot(significant_genus_table, aes(x=region, y=.data[[i]], color = region)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
@@ -1487,9 +1522,11 @@ print(plt)
 }
 ```
 
-## RDA
-```{r prep_data, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+  
+only three plots shown to illustrate the plotting function.
 
+## 7.3 RDA
+```{r prep_data, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 count_table_t <- data.frame(t(genome_counts)) %>%
   row_to_names(row_number = 1) %>%
   as.data.frame() %>%
@@ -1549,7 +1586,6 @@ species_index <- data.frame(
 # combine dataframes
 all_dataframe <- data.frame(rda_sc_wa, design)
 ```
-
 ```{r rda_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 # Plot
 ggplot(all_dataframe, aes(y = PC1, x = RDA1)) +
@@ -1557,7 +1593,6 @@ ggplot(all_dataframe, aes(y = PC1, x = RDA1)) +
   # text
   xlab(paste0("RDA1 (", perc[1], "%)")) +
   ylab(paste0("PC1 (", perc[2], "%)")) +
-#  ggtitle("Caecum microbiome development (AdjR2 = 0.20)") +
   # segment
 geom_segment(data = HighFit_ASVs,
              aes(x = 0, xend = RDA1, y = 0, yend = PC1),
@@ -1580,18 +1615,10 @@ geom_label_repel(data = HighFit_ASVs,
     plot.title = element_text(size = 10),
     legend.position = "none"
   )
-#i + geom_segment(aes(x = 0, y = 0, xend = -0.5, yend = -0.4),
-#                  arrow = arrow(length = unit(0.5, "cm")))+
-#  geom_segment(aes(x = 0, y = 0, xend = -0.5, yend = 0.4),
-#                  arrow = arrow(length = unit(0.5, "cm")))
-#arrows(0,0, # start them from (0,0)
-#       sc_bp[,1], sc_bp[,2], # end them at the score value
-#       col = "red", 
-#       lwd = 4)
 ```
 
-## Enrichment analysis between location
-### Edger
+## 7.4 Enrichment analysis between location
+### 7.4.1 Edger
 ```{r table_edger, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 library(edgeR)
 sample_metadata <- sample_metadata %>% arrange(sample)
@@ -1624,15 +1651,16 @@ taxonomy <- column_to_rownames(genome_metadata, "genome")
 difMAGs <- cbind(as.data.frame(results[results$table$FDR<0.05,]), taxonomy[rownames(difMAGs),])#,table_upset_analysis_cont[rownames(difMAGs),],
 #write.csv(difMAGs,"results/enrichment.csv")
 ```
-
+***genome***
 ```{r edger_plot1, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 difMAGs_row  <- difMAGs %>%
   rownames_to_column(., "genome")
 phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
-  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", ""))%>%
-  dplyr::right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
+  dplyr::right_join(difMAGs_row, by=join_by(phylum == phylum)) %>%
     arrange(match(genome, tree$tip.label)) %>%
     dplyr::select(phylum, colors) %>%
+    mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
     unique() %>%
     arrange(phylum) %>%
     dplyr::select(colors) %>%
@@ -1652,7 +1680,7 @@ ggplot(aes(x=genome, y=logFC, color=phylum)) +
           panel.grid.major = element_line(size = 0.15, linetype = 'solid',
                                 colour = "grey"))
 ```
-
+***genera***
 ```{r edger_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 difMAGs_row %>%
 ggplot(aes(x=genus, y=logFC, color=phylum)) + 
@@ -1669,14 +1697,14 @@ ggplot(aes(x=genus, y=logFC, color=phylum)) +
                                 colour = "grey"))
 ```
 
-## DESeq2
-```{r}
+## 7.5 DESeq2
+```{r deseq_lib, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 library(genefilter)
 library(DESeq2)
 ```
 
 ***Genome***
-```{r deseq2, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r deseq2, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 diagdds = phyloseq_to_deseq2(genome_data, ~ region)
 
 diagdds <- estimateSizeFactors(diagdds, type="poscounts",locfunc=genefilter::shorth)
@@ -1700,6 +1728,17 @@ sigtab_diagdds_with_tax$Genus = factor(as.character(sigtab_diagdds_with_tax$genu
 ```
 
 ```{r deseq_plot2, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
+  dplyr::right_join(sigtab_diagdds_with_tax, by=join_by(phylum == phylum)) %>%
+    arrange(match(genome, tree$tip.label)) %>%
+    dplyr::select(phylum, colors) %>%
+    mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
+    unique() %>%
+    arrange(phylum) %>%
+    dplyr::select(colors) %>%
+    pull()
+
 sigtab_diagdds_with_tax %>% 
   ggplot(aes(x=genome, y=log2FoldChange, color=phylum)) + 
   geom_point(size=4) +
@@ -1710,11 +1749,12 @@ sigtab_diagdds_with_tax %>%
           axis.title = element_text(size = 12),
           legend.position = "bottom", 
           legend.title = element_blank()) +
-  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
-  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
+  geom_text(aes(3, 5), label = "IT", color="#666666") +
+  geom_text(aes(3, -5), label = "DB", color="#666666")
 ```
+
 ***Genera***
-```{r deseq2, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r deseq2_gen, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 genome_data_genus <- tax_glom(genome_data, 'genus')
 diagdds_genus = phyloseq_to_deseq2(genome_data_genus, ~ region)
 
@@ -1738,7 +1778,18 @@ x = sort(x, TRUE)
 sigtab_diagdds_with_tax_genus$Genus = factor(as.character(sigtab_diagdds_with_tax_genus$genus), levels=names(x))
 ```
 
-```{r deseq_plot2, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r deseq_plot2_gen, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
+  dplyr::right_join(sigtab_diagdds_with_tax, by=join_by(phylum == phylum)) %>%
+    arrange(match(genome, tree$tip.label)) %>%
+    dplyr::select(phylum, colors) %>%
+    mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
+    unique() %>%
+    arrange(phylum) %>%
+    dplyr::select(colors) %>%
+    pull()
+
 sigtab_diagdds_with_tax_genus %>% 
   ggplot(aes(x=genus, y=log2FoldChange, color=phylum)) + 
   geom_point(size=4) +
@@ -1749,26 +1800,23 @@ sigtab_diagdds_with_tax_genus %>%
           axis.title = element_text(size = 12),
           legend.position = "bottom", 
           legend.title = element_blank()) +
-  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
-  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
+  geom_text(aes(3, 5), label = "IT", color="#666666") +
+  geom_text(aes(3, -5), label = "DB", color="#666666")
 ```
-
-
-## ANCOM-BC
-```{r}
+## 7.6 ANCOM-BC
+```{r ancombc, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 phylo_counts_ancom <- genome_counts %>% 
                     filter(!genome %in% structural_zeros$genome) %>% # remove structural zeros
                     column_to_rownames("genome") %>% 
                     mutate_all(~ replace(., . == 0, 0.00001)) %>% #add pseudo counts to avoid structural zero issues 
                     otu_table(., taxa_are_rows = TRUE)
 
-
 #Generate phyloseq object required to input ANCOMBC, only difference is the addition of the psudocounts
 physeq_ancom <- phyloseq(phylo_counts_ancom, phylo_taxonomy, phylo_samples)
 ```
 
 ***Genome***
-```{r ancom_rand, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r ancom_rand, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 library(ANCOMBC)
 set.seed(1234) #set seed for reproducibility
 ancom_rand_output = ancombc2(data = physeq_ancom, 
@@ -1806,7 +1854,7 @@ ancombc_rand_table <- ancom_rand_output$res %>%
   merge(., tax, by="taxon")
 
 colors_alphabetic <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
-  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", ""))  %>%
+#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", ""))  %>%
   dplyr::right_join(tax, by=join_by(phylum == phylum)) %>%
   dplyr::select(phylum, colors) %>%
   mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
@@ -1833,8 +1881,8 @@ ggplot(ancombc_rand_table, aes(x=forcats::fct_rev(taxon), y=lfc_regionIttoqqorto
   xlab("Genome") + 
   ylab("log2FoldChange")+
   guides(col=guide_legend("Phylum")) +
-  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
-  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
+  geom_text(aes(3, 5), label = "IT", color="#666666") +
+  geom_text(aes(3, -5), label = "DB", color="#666666")
 ```
 ```{r ancom_rand_volcano, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 ancom_result <- ancom_rand_output$res %>%
@@ -1846,13 +1894,14 @@ ancom_result %>%
     ggplot(., aes(x=-log(p_regionIttoqqortoormiit), y=lfc_regionIttoqqortoormiit, color=significance)) +
       geom_point() +
       scale_color_manual(values = c("#cccccc","#00FFFF")) +
-      geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
-      geom_text(aes(3, -5), label = "Enriched\nin Daneborg", color="#666666") +
+      geom_text(aes(3, 5), label = "IT", color="#666666") +
+      geom_text(aes(3, -5), label = "DB", color="#666666") +
       labs(color="Significance", y="Difference between regions", x="p-value") +
       theme_classic()
 ```
+
 ***Genera***
-```{r ancom_rand, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r ancom_rand_gen, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 library(ANCOMBC)
 set.seed(1234) #set seed for reproducibility
 ancom_rand_output_genus = ancombc2(data = physeq_ancom, 
@@ -1906,7 +1955,7 @@ tax_color <- merge(tax_table, colors_alphabetic, by="phylum")%>%
 	pull()
 ```
 
-```{r ancombc_rand_plot, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r ancombc_rand_plot_gen, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(ancombc_rand_table_genus, aes(x=forcats::fct_rev(genus), y=lfc_regionIttoqqortoormiit, color=phylum)) + 
   geom_point(size=4) + 
   scale_color_manual(values=tax_color) + 
@@ -1918,11 +1967,11 @@ ggplot(ancombc_rand_table_genus, aes(x=forcats::fct_rev(genus), y=lfc_regionItto
   xlab("Genus") + 
   ylab("log2FoldChange")+
   guides(col=guide_legend("Phylum")) +
-  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
-  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
+  geom_text(aes(3, 5), label = "IT", color="#666666") +
+  geom_text(aes(3, -5), label = "DB", color="#666666")
   
 ```
-```{r ancom_rand_volcano, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r ancom_rand_volcano_gen, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 ancom_result_genus <- ancom_rand_output_genus$res %>%
   na.omit() %>%
   dplyr::rename(genus=taxon) %>%
@@ -1932,20 +1981,23 @@ ancom_result_genus %>%
     ggplot(., aes(x=-log(p_regionIttoqqortoormiit), y=lfc_regionIttoqqortoormiit, color=significance)) +
       geom_point() +
       scale_color_manual(values = c("#cccccc","#00FFFF")) +
-      geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
-      geom_text(aes(3, -5), label = "Enriched\nin Daneborg", color="#666666") +
+      geom_text(aes(3, 5), label = "IT", color="#666666") +
+      geom_text(aes(3, -5), label = "DB", color="#666666") +
       labs(color="Significance", y="Difference between regions (LFC)", x="p-value") +
       theme_classic()
 ```
-### LinDA
 
-```{r LinDA DA P, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+
+## 7.7 LinDA
+
+```{r LinDA_mag, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 library(mia)
 tse_LinDA = mia::makeTreeSummarizedExperimentFromPhyloseq(genome_data) # create tse object from the phyloseq object with structural zeros removed, no pseudo counts. 
 tse_LinDA <- mia::subsetByPrevalentTaxa(tse_LinDA, detection = 0, prevalence = 0.1) # filter tse object
 ```
+
 ***Genome***
-```{r LinDA DA P analysis, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r LinDA_mag_analysis, comment="", echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 
 otu.tab <- as.data.frame(assay(tse_LinDA))
 meta <- as.data.frame(colData(tse_LinDA)) %>% 
@@ -1958,9 +2010,9 @@ LinDA <- LinDA::linda(
   prev.cut = 0, # we already filtered  
   winsor.quan = 0.97)
 
-LinDA::linda.plot(LinDA, c('region'))
-
+# LinDA::linda.plot(LinDA, c('region'))
 ```
+
 ```{r linda_plot7, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 tax <- data.frame(genome_data@tax_table) %>%
   rownames_to_column(., "asv")
@@ -1991,16 +2043,18 @@ ggplot(LinDA_table_filt, aes(x=forcats::fct_rev(asv), y=log2FoldChange, color=ph
   xlab("Genome") + 
   ylab("log2FoldChange")+
   guides(col=guide_legend("Phylum")) +
-  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
-  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
+  geom_text(aes(3, 5), label = "IT", color="#666666") +
+  geom_text(aes(3, -5), label = "DB", color="#666666")
 ```
-```{r LinDA DA P, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r LinDA_gen, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 library(mia)
 tse_LinDA_genus = mia::makeTreeSummarizedExperimentFromPhyloseq(genome_data_genus) # at genus level 
 tse_LinDA_genus <- mia::subsetByPrevalentTaxa(tse_LinDA_genus, detection = 0, prevalence = 0.1) # filter tse object
 ```
-***Genome***
-```{r LinDA DA P analysis, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+
+\
+***Genera***
+```{r LinDA_gen_analysis, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 
 otu.tab_genus <- as.data.frame(assay(tse_LinDA_genus))
 meta_genus <- as.data.frame(colData(tse_LinDA_genus)) %>% 
@@ -2013,10 +2067,10 @@ LinDA_genus <- LinDA::linda(
   prev.cut = 0, # we already filtered  
   winsor.quan = 0.97)
 
-LinDA::linda.plot(LinDA_genus, c('region'))
-
+# LinDA::linda.plot(LinDA_genus, c('region'))
 ```
-```{r linda_plot7, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+
+```{r linda_plot7_gen, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 tax <- data.frame(genome_data_genus@tax_table) %>%
   rownames_to_column(., "asv")
 
@@ -2035,12 +2089,13 @@ ggplot(LinDA_table_filt_genus, aes(x=forcats::fct_rev(genus), y=log2FoldChange, 
   xlab("Genome") + 
   ylab("log2FoldChange")+
   guides(col=guide_legend("Phylum")) +
-  geom_text(aes(3, 5), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
-  geom_text(aes(3, -5), label = "Enriched\nin Danenborg", color="#666666")
+  geom_text(aes(3, 5), label = "IT", color="#666666") +
+  geom_text(aes(3, -5), label = "DB", color="#666666")
 ```
-## ALDEx2
 
-```{r aldex, comment="", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+\
+## 7.8 ALDEx2
+```{r aldex, comment="", echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 library(ALDEx2)
 genome_counts_row <- column_to_rownames(genome_counts, "genome")
 genome_counts_row_new <- genome_counts_row[,order(colnames(genome_counts_row))]
@@ -2062,14 +2117,14 @@ genome_counts_filtered.clr <- aldex.clr(genome_counts_aldex,
                verbose=F)
 ```
 
-```{r aldex_test, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r aldex_test, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 genome_counts_filtered.ttest <- aldex.ttest(genome_counts_filtered.clr, 
                 hist.plot=F, 
                 paired.test=F, 
                 verbose=F)
 ```
 
-```{r aldex_effect, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r aldex_effect, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 genome_counts_filtered.effect <- aldex.effect(genome_counts_filtered.clr, 
               CI=T, 
               verbose=F, 
@@ -2078,7 +2133,7 @@ genome_counts_filtered.effect <- aldex.effect(genome_counts_filtered.clr,
               useMC=F)
 ```
 
-```{r aldex_meta, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+```{r aldex_meta, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 genome_counts_filtered.all <- data.frame(genome_counts_filtered.ttest,genome_counts_filtered.effect) %>%
     rownames_to_column(var="genome") %>%
     dplyr::left_join(genome_metadata,by=join_by(genome==genome))
@@ -2107,8 +2162,8 @@ genome_counts_filtered.all %>%
       geom_abline(intercept = 0, slope = -4, linewidth=0.8,   linetype="dashed", color="#000000") +
       geom_point() +
       scale_color_manual(values = c("#cccccc90","#00FFFF90")) +
-      geom_text(aes(2.5, 20), label = "Enriched\nin Danenborg", color="#666666") +
-      geom_text(aes(2.5, -20), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+      geom_text(aes(2.5, 20), label = "DB", color="#666666") +
+      geom_text(aes(2.5, -20), label = "IT", color="#666666") +
       labs(color="Significance", y="Difference between region", x="Dispersion within sample types") +
       theme_classic()
 ```
@@ -2119,7 +2174,7 @@ genome_counts_filtered.padj <- genome_counts_filtered.all %>%
     filter(wi.eBH < 0.05)
 
 phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
-  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
+#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
   dplyr::right_join(genome_counts_filtered.padj, by=join_by(phylum == phylum)) %>%
     arrange(match(genome,tree$tip.label)) %>%
     dplyr::select(phylum, colors) %>%
@@ -2136,8 +2191,8 @@ genome_counts_filtered.all %>%
       geom_vline(xintercept=0) +
       scale_color_manual(values=phylum_colors)+ 
       xlim(-max(genome_counts_filtered.all$effect)-1,max(genome_counts_filtered.all$effect)+1)  +
-      geom_text(aes(-max(genome_counts_filtered.all$effect)+1, 3.9), label = "Enriched\nin Daneborg", color="#666666") +
-      geom_text(aes(max(genome_counts_filtered.all$effect)-1, 3.9), label = "Enriched\nin Ittoqqortoormiit", color="#666666") +
+      geom_text(aes(-max(genome_counts_filtered.all$effect)+1, 3.9), label = "DB", color="#666666") +
+      geom_text(aes(max(genome_counts_filtered.all$effect)-1, 3.9), label = "IT", color="#666666") +
   theme(axis.text = element_text(size = 8, face="bold.italic"),
         axis.title = element_text(size = 12),
         legend.position = "right", 
@@ -2148,7 +2203,7 @@ genome_counts_filtered.all %>%
   ylab("Genome")
 ```
 
-## Significance based on posterior probabilities
+***Significance based on posterior probabilities***
 
 ```{r plota1, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 genome_counts_filtered.all %>%
@@ -2170,13 +2225,12 @@ genome_counts_filtered.all %>%
 ```
 
 ```{r plota, comment="", echo=FALSE, message=FALSE, warning=FALSE}
-
 genome_counts_filtered.sig <- genome_counts_filtered.all %>%
   filter(overlap < 0.1) 
 
 #Get phylum colors from the EHI standard
 phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
-  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
+#  mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", "")) %>%
   dplyr::right_join(genome_counts_filtered.sig, by=join_by(phylum == phylum)) %>%
     arrange(match(genome,tree$tip.label)) %>%
     dplyr::select(phylum, colors) %>%
@@ -2200,10 +2254,12 @@ genome_counts_filtered.sig %>%
           axis.title.x=element_blank())+
       labs(y="Genome") + 
       guides(col=guide_legend("Phylum"))
-
 ```
-# Merged DA
-```{r merge DA results}
+
+
+## 7.9 Merge Differential abundance results
+
+```{r merge DA results, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 # Wilcoxon
 Wilcoxon_genome <- significant_genome %>%
   dplyr::select(., Genome, p_adjust) %>%
@@ -2245,7 +2301,10 @@ DA_results_list <- list(Wilcoxon_genome, DESeq_genome, ANCOMBC_genome, LinDA_gen
 DA_results<- Reduce(function(x, y) merge(x, y, all=TRUE), DA_results_list) 
 DA_results <- dplyr::left_join(DA_results, genome_metadata, by = "genome")
 ```
-```{r UpSet DA}
+
+\
+***Upset Analysis***
+```{r UpSet DA, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 library(UpSetR)
 
 table_upset_DA <- DA_results  %>%
@@ -2270,17 +2329,19 @@ upset(table_upset_DA_binary,
       sets.bar.color= rev(methodcolors),
       mb.ratio = c(0.55, 0.45), order.by = "freq")
 #dev.off()
-
-
 ```
-```{r filtered DA results}
+
+
+```{r filtered DA results, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 # Filtered DA Results (only MAGs found to be DA by 2+ methods)
+
 filtered_DA_results <- DA_results %>%
   dplyr::select(., genome, padj_WILCOX, padj_DESEQ, padj_ANCOMBC, padj_LINDA, padj_ALDEX) %>%
   column_to_rownames(var="genome")  %>%
   {.[is.na(.)] <- 0; .}
 filtered_DA_results <- filtered_DA_results %>%
   filter(rowSums(. > 0) >= 2) 
+
 # Merge annotations
 filtered_DA_results <- filtered_DA_results %>%
   rownames_to_column(var="genome")
@@ -2296,14 +2357,13 @@ filtered_DA_results <- filtered_DA_results %>%
 ```
 
 ***Mags from DA with species-level annotation***
-
-```{r}
+```{r DA_species, comment="", echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
 filtered_DA_results%>%
 	filter(species != "s__") # 109 DA MAGs WITH species-level annotation therefore 77 DA MAGs are w/o species level annotation
 ```
 
-#Kraken
-```{r}
+# 8 Kraken 
+```{r kraken_data, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 # read in kraken data
 kraken_data <- read.csv("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/kraken_data.csv")
 
@@ -2312,7 +2372,8 @@ kraken_subset <- kraken_data[, c("Eukaryota_.","Cryptosporidium_.","Giardia_.","
 colNames_kraken <- setdiff(names(kraken_subset), c("region", "sample"))
 ```
 
-```{r kraken means}
+***summary data***
+```{r kraken means, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 column_names <-colNames_kraken
 means_list_kraken <- list()
 
@@ -2328,9 +2389,11 @@ for (col_name in column_names) {
   cat("Mean for", col_name, ":\n")
   print(head(means_list_kraken[[col_name]]))
 }
-merged_means <- Reduce(function(x, y) merge(x, y, by = "region", all = TRUE), means_list_kraken)
+merged_means <- Reduce(function(x, y) merge(x, y, by = "region", all = TRUE), means_list_kraken) %>%
+  knitr::kable()
 ```
-```{r}
+
+```{r kraken_sd, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 sds_list_kraken <- list()
 
 for (col_name in column_names) {
@@ -2346,12 +2409,12 @@ for (col_name in column_names) {
   print(head(sds_list_kraken[[col_name]]))
 }
 
-merged_sds <- Reduce(function(x, y) merge(x, y, by = "region", all = TRUE), sds_list_kraken)
-
+merged_sds <- Reduce(function(x, y) merge(x, y, by = "region", all = TRUE), sds_list_kraken) %>%
+  knitr::kable()
 ```
 
-
-```{r wilcox0_kraken, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+***Wilcoxon testing (percentages)***
+```{r wilcox0_kraken, comment="", echo=TRUE, message=FALSE, warning=FALSE}
 wilcox_kraken <- kraken_subset %>%
     pivot_longer(-c(sample, region), names_to = "Parasite", values_to = "value") %>%
     group_by(Parasite) %>%
@@ -2364,11 +2427,12 @@ wilcox_kraken <- kraken_subset %>%
     }) %>%
     mutate(p_adjust = ifelse(!is.na(p_value), p.adjust(p_value, method = "BH"), NA))
 
-
 significant_kraken <- wilcox_kraken %>%
-  filter(!is.na(p_adjust) & p_adjust < 0.05)
+  filter(!is.na(p_adjust) & p_adjust < 0.05) %>%
+  knitr::kable()
 ```
-```{r kraken plotting}
+
+```{r kraken plotting, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 for(i in colNames_kraken){
   plt_kraken <- ggplot(kraken_subset, aes(x=region, y=.data[[i]], color = region)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
@@ -2383,15 +2447,15 @@ print(plt_kraken)
 }
 ```
 
-## Fishers Exact testing:
-```{r inferred species}
+***Fishers Exact testing (presence / absence)***
+```{r inferred species, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 inferred_species <- read.csv("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/inferred_species.csv") %>% as.data.frame()
 columns_to_select <- setdiff(names(inferred_species), "region")
 
-# Perform left join excluding the 'region' column
 sample_metadata <- dplyr::left_join(sample_metadata, inferred_species %>% dplyr::select(all_of(columns_to_select)), by = "sample")
 ```
-```{r counts of higher resolution taxonomic info}
+
+```{r counts of higher resolution taxonomic info, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 # Parvo
 count_Parvo <- aggregate(PARVO_Parvoviridae ~ region, data = sample_metadata, FUN = sum) # Daneborg = 28, Ittoq = 27
 count_Bocaparvovirus <- aggregate(PARVO_Bocaparvovirus ~ region, data = sample_metadata, FUN = sum) # Daneborg = 23, Ittoq = 27
@@ -2412,14 +2476,13 @@ count_Pap <- aggregate(PAP_Papillomaviridae ~ region, data = sample_metadata, FU
 count_HPV <- aggregate(PAP_HPV ~ region, data = sample_metadata, FUN = sum) # Daneborg = 28, Ittoq = 29
 count_Tick_assoc_papillomavirus_lsx <- aggregate(PAP_Tick_assoc_papillomavirus_lsx ~ region, data = sample_metadata, FUN = sum) # Daneborg 0, Ittoq = 25
 ```
-```{r contingency tables}
+
+```{r fishers_exact, comment="", echo=FALSE, message=FALSE, warning=FALSE}
 disease_columns <- c("S_capracanis", "S_tuagulusi", "S_hirsuta", "G_intestinalis", "G_peramelis", "G_muris", "Tr_spiralis", "Tr_OTHER", "Tr_pathgoniensis", "Tr_pseudospiralis", "Ta_laticollis", "Ta_asiatica", "Ta_solium", "Ta_OTHER", "Ta_krabbei", "Ta_arctos", "Ta_multiceps", "Ta_saginata", "Ta_madoquae", "E_granulosus", "E_multilocularis", "C_ubiquitum", "C_parvum", "C_hominis_TU502", "C_proventriculi", "C_muris_RN66", "C_OTHER", "C_wrairi", "C_canis", "PARVO_Parvoviridae", "PARVO_Bocaparvovirus", "PARVO_Human_Bocavirus", "PARVO_Bufavirus_1" , "PARVO_Canine_Minute", "PARVO_Canine_bufavirus", "PARVO_Canine_bufavirus", "PARVO_Canine_protoparvovirus", "PARVO_Canine_parvovirus", "ADENO_Adenoviridae", "ADENO_Human_adenovirus", "ADENO_Canine_mastadenovirus", "PAP_HPV", "PAP_Papillomaviridae", "PAP_Tick_assoc_papillomavirus_lsx")
 
 contingency_table <- table(sample_metadata$region, sample_metadata$C_meleagridis) # change out disease to test all
 
 # Run Fisher's exact test
 fisher_result <- fisher.test(contingency_table)
-
-# Print the results
 print(fisher_result)
 ```
