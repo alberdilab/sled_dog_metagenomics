@@ -593,7 +593,7 @@ functional_mean <- alpha_div %>%
   group_by(region) %>%
   dplyr::summarise_at(.vars = names(.)[5], .funs = c("Functional mean" = "mean", "Functional sd" = "sd"))
 
-cbind(richness_mean, neutral_mean[, 2:3], #phylogenetic_mean[, 2:3], 
+cbind(richness_mean, neutral_mean[, 2:3], phylogenetic_mean[, 2:3], 
       functional_mean[, 2:3]) %>% 
   as.data.frame()%>%
   t() %>%
