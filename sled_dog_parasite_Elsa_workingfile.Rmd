@@ -2367,7 +2367,7 @@ filtered_DA_results%>%
 # read in kraken data
 kraken_data <- read.csv("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/resources/kraken_data.csv")
 
-kraken_subset <- kraken_data[, c("Eukaryota_.","Cryptosporidium_.","Giardia_.","Sarcocystis_.","Toxoplasma_gondii_.","Trichinella_.","Uncinaria_.", "Echinococcus_.", "Taenia_.","Cestoda_.","Nematoda_.","Virus_.", "PARVO_Parvoviridae_.","PARVO_Bocaparvovirus_.","ADENO_Adenoviridae_.", "PAP_Papillomaviridae_.", "sample", "region")] # subset kraken_data to only include Parasites present in both regions
+kraken_subset <- kraken_data[, c("Cetacea_.", "Pinnipedia_.",  "Eukaryota_.","Cryptosporidium_.","Giardia_.","Sarcocystis_.","Toxoplasma_gondii_.","Trichinella_.","Uncinaria_.", "Echinococcus_.", "Taenia_.", "Toxascaris_.", "Cestoda_.","Nematoda_.","Virus_.", "PARVO_Parvoviridae_.","PARVO_Bocaparvovirus_.","ADENO_Adenoviridae_.", "PAP_Papillomaviridae_.", "sample", "region")] # subset kraken_data to only include Parasites present in both regions
 
 colNames_kraken <- setdiff(names(kraken_subset), c("region", "sample"))
 ```
