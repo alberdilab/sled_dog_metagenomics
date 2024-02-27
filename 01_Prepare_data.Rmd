@@ -67,7 +67,7 @@ metadata_unified <- read.csv("/Users/elsa/Desktop/THESIS/sled_dog_metagenomics/r
 metadata_unified_clean <- metadata_unified %>%
   filter(sample != "")
 selected_columns <- metadata_unified_clean %>%
-  dplyr::select(sample, Q_code, PR_results_short, PR_toxocaris_leonina, PR_sarcocystis, PR_Tania_serialis, PR_cryptosporidium, PR_giardia, sero_toxoplasma_gondii_PR, sero_trichincella_spp_PR, Huldscore, Eukaryota_., Cryptosporidium_., Giardia_., Sarcocystis_., Toxoplasma_gondii_., Toxacaris_., Trichinella_., Uncinaria_., Echinococcus_., Taenia_., Cestoda_., Nematoda_., Virus_., PARVO_Parvoviridae_., PARVO_Bocaparvovirus_., PARVO_Canine_Minute_., PARVO_Canine_bufavirus_., PARVO_Canine_protoparvovirus_., PARVO_Canine_parvovirus_., ADENO_Adenoviridae_., ADENO_Canine_mastadenovirus_., PAP_Papillomaviridae_., )
+  dplyr::select(sample, Q_code, Vacc_Status, PR_results_short, PR_toxocaris_leonina, PR_sarcocystis, PR_Tania_serialis, PR_cryptosporidium, PR_giardia, sero_toxoplasma_gondii_PR, sero_trichincella_spp_PR, Huldscore, Eukaryota_., Cryptosporidium_., Giardia_., Sarcocystis_., Toxoplasma_gondii_., Toxacaris_., Trichinella_., Uncinaria_., Echinococcus_., Taenia_., Cestoda_., Nematoda_., Virus_., PARVO_Parvoviridae_., PARVO_Bocaparvovirus_., PARVO_Canine_Minute_., PARVO_Canine_bufavirus_., PARVO_Canine_protoparvovirus_., PARVO_Canine_parvovirus_., ADENO_Adenoviridae_., ADENO_Canine_mastadenovirus_., PAP_Papillomaviridae_., )
 
 sample_metadata <- dplyr::left_join(sample_metadata, selected_columns, by = "sample") # use for remaining analysis
 ```

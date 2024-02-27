@@ -2486,3 +2486,86 @@ contingency_table <- table(sample_metadata$region, sample_metadata$C_meleagridis
 fisher_result <- fisher.test(contingency_table)
 print(fisher_result)
 ```
+
+```{r vacc data, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+means_virus_vacc <- sample_metadata %>%
+  group_by(Vacc_Status) %>%
+  summarize(mean_virus_vacc = mean(Virus_., na.rm = TRUE)) # Not vaccinated 0.409000; Previously vaccinated 0.186875	
+
+kraken_subset_virus <- sample_metadata[, c("Virus_.", "PARVO_Parvoviridae_.","PARVO_Bocaparvovirus_.","ADENO_Adenoviridae_.", "PAP_Papillomaviridae_.", "sample", "Vacc_Status")] # subset kraken_data to only include viruses
+
+colNames_kraken_virus <- setdiff(names(kraken_subset_virus), c("Vacc_Status", "sample"))
+```
+
+***summary data***
+```{r kraken means vacc, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+colNames_kraken_virus <-colNames_kraken_virus
+means_list_kraken_virus <- list()
+
+for (col_name in colNames_kraken_virus) {
+  mean_data <- sample_metadata %>%
+    group_by(Vacc_Status) %>%
+    summarise(!!paste0("mean_", col_name) := mean(!!sym(col_name), na.rm = TRUE))
+  
+  means_list_kraken_virus[[col_name]] <- mean_data
+}
+
+for (col_name in colNames_kraken_virus) {
+  cat("Mean for", col_name, ":\n")
+  print(head(means_list_kraken_virus[[col_name]]))
+}
+merged_means_virus <- Reduce(function(x, y) merge(x, y, by = "Vacc_Status", all = TRUE), means_list_kraken_virus) %>%
+  knitr::kable()
+```
+
+```{r kraken_sd virus, comment="", echo=FALSE, message=FALSE, warning=FALSE}
+sds_list_kraken_virus <- list()
+
+for (col_name in colNames_kraken_virus) {
+  sd_data <- sample_metadata %>%
+    group_by(Vacc_Status) %>%
+    summarise(!!paste0("sd_", col_name) := sd(!!sym(col_name), na.rm = TRUE))
+  
+  sds_list_kraken_virus[[col_name]] <- sd_data
+}
+
+for (col_name in colNames_kraken_virus) {
+  cat("Standard Deviation for", col_name, ":\n")
+  print(head(sds_list_kraken_virus[[col_name]]))
+}
+
+merged_sds_virus <- Reduce(function(x, y) merge(x, y, by = "Vacc_Status", all = TRUE), sds_list_kraken_virus) %>%
+  knitr::kable()
+```
+
+***Wilcoxon testing (percentages)***
+```{r wilcox0_kraken virus, comment="", echo=TRUE, message=FALSE, warning=FALSE}
+wilcox_kraken_virus <- kraken_subset_virus %>%
+    pivot_longer(-c(sample, Vacc_Status), names_to = "Virus", values_to = "value") %>%
+    group_by(Virus) %>%
+    summarise(p_value = {
+        if (n_distinct(Vacc_Status) >= 2) {
+            wilcox.test(value ~ Vacc_Status, data = cur_data(), exact = TRUE)$p.value
+        } else {
+            NA
+        }
+    }) %>%
+    mutate(p_adjust = ifelse(!is.na(p_value), p.adjust(p_value, method = "BH"), NA))
+
+significant_kraken_virus <- wilcox_kraken_virus %>%
+  filter(!is.na(p_adjust) & p_adjust < 0.05) %>%
+  knitr::kable()
+
+for(i in colNames_kraken_virus){
+  plt_kraken_virus <- ggplot(kraken_subset_virus, aes(x=Vacc_Status, y=.data[[i]], color = Vacc_Status)) +
+    geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
+  geom_jitter(width = 0.1, show.legend = TRUE) +
+  theme_minimal() +
+  theme(
+    axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank())
+print(plt_kraken_virus)
+}
+```
